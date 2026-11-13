@@ -1,0 +1,220 @@
+# Agency OS - docker-compose de PRODUCCIÓN (pensado para Coolify: recurso "Docker Compose").
+#
+# - SIN secretos en este archivo: todo llega por variables de entorno (UI de Coolify). Ver .env.production.example.
+# - Variables con ${VAR:?msg} son obligatorias: el deploy falla con un mensaje claro si faltan.
+# - Dominio: en Coolify, asigná el dominio (https://...) al servicio "app" con puerto 8080.
+#   Coolify/Traefik termina TLS; nginx dentro del contenedor escucha en 8080 y también publica
+#   Reverb en el mismo dominio (wss://<dominio>/app/<REVERB_APP_KEY>), así que no hace falta otro dominio.
+# - Las variables VITE_* se hornean en el build del frontend: se pasan como build args (ver "build.args").
+#   Si cambiás REVERB_APP_KEY / REVERB_HOST / REVERB_PORT / REVERB_SCHEME hay que REDESPLEGAR (rebuild), no solo reiniciar.
+# - Este archivo no es el de desarrollo: ese es docker-compose.dev.yml.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_APP_NAME: ${APP_NAME:-Agency OS}
+        VITE_REVERB_APP_KEY: ${REVERB_APP_KEY:-}
+        VITE_REVERB_HOST: ${REVERB_HOST:-}
+        VITE_REVERB_PORT: ${REVERB_PORT:-443}
+        VITE_REVERB_SCHEME: ${REVERB_SCHEME:-https}
+    image: agency-os:latest
+    restart: unless-stopped
+    logging: *logging
+    # Límites (VPS de 2 GB: app 768 MB + postgres 384 MB + redis 160 MB + backup 128 MB (pico, normalmente ~5 MB) = ~1.4 GB, deja margen al SO y Coolify).
+    mem_limit: 768m
+    memswap_limit: 768m
+    cpus: 1.5
+    init: true
+    stop_grace_period: 110s
+    environment:
+      # --- Aplicación ---
+      APP_NAME: ${APP_NAME:-Agency OS}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: "${APP_KEY:?Falta APP_KEY (php artisan key:generate --show). Guardala aparte, si se pierde se pierde la boveda}"
+      APP_URL: "${APP_URL:?Falta APP_URL (https://tu-dominio)}"
+      APP_LOCALE: ${APP_LOCALE:-es}
+      APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-es}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      # --- Base de datos ---
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: ${DB_DATABASE:-laia}
+      DB_USERNAME: ${DB_USERNAME:-laia}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+      # --- Redis (caché, sesiones, colas, settings) ---
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Falta REDIS_PASSWORD}
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      QUEUE_CONNECTION: redis
+      FILESYSTEM_DISK: local
+      # --- Correo (Resend por SMTP, o el SMTP que elijas; también editable desde Configuración) ---
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_SCHEME: ${MAIL_SCHEME:-}
+      MAIL_HOST: ${MAIL_HOST:-smtp.resend.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-resend}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hola@laia.studio}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Agency OS}
+      # --- Tiempo real (Reverb, detrás del proxy por WSS 443) ---
+      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-reverb}
+      REVERB_APP_ID: ${REVERB_APP_ID:-}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-}
+      REVERB_HOST: ${REVERB_HOST:-}
+      REVERB_PORT: ${REVERB_PORT:-443}
+      REVERB_SCHEME: ${REVERB_SCHEME:-https}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: "8081"
+      # --- Qué procesos corre este contenedor (Supervisor) ---
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      RUN_QUEUE: ${RUN_QUEUE:-true}
+      RUN_SCHEDULER: ${RUN_SCHEDULER:-true}
+      RUN_REVERB: ${RUN_REVERB:-true}
+      QUEUE_WORKERS: ${QUEUE_WORKERS:-1}
+      # --- Backups (backup.sh / restore.sh) ---
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - storage_app:/var/www/html/storage/app   # PDFs y archivos subidos (PRIVADOS): imprescindible
+      - backups:/backups                        # dumps de PostgreSQL de backup.sh
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 384m
+    memswap_limit: 384m
+    cpus: 1.0
+    shm_size: 128m
+    # Tuning para ~2 GB de VPS compartido (ajustá shared_buffers a ~25% de la RAM asignada a postgres).
+    command:
+      - postgres
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=48MB
+      - -c
+      - wal_buffers=4MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - max_wal_size=512MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=1000
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-laia}
+      POSTGRES_USER: ${DB_USERNAME:-laia}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 160m
+    memswap_limit: 160m
+    cpus: 0.5
+    # maxmemory 128mb + volatile-lru: solo expulsa claves CON TTL (caché, sesiones). Las colas (listas sin TTL)
+    # nunca se expulsan: allkeys-lru podría borrar jobs encolados. appendonly everysec: sobrevive a reinicios.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru", "--save", "", "--requirepass", "${REDIS_PASSWORD:?Falta REDIS_PASSWORD}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Falta REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Backup diario de PostgreSQL (pg_dump) a las BACKUP_HOUR (03) hora local, sin cron: bucle con sleep.
+  # Reusa la imagen de app (trae pg_dump y backup.sh). ~5 MB en reposo. Si preferís Scheduled Tasks de Coolify, quitá este servicio.
+  backup:
+    image: agency-os:latest
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.5
+    init: true
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: ${DB_DATABASE:-laia}
+      DB_USERNAME: ${DB_USERNAME:-laia}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_HOUR: ${BACKUP_HOUR:-03}
+    volumes:
+      - backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "$$(date +%Y-%m-%d) $${BACKUP_HOUR}:00:00" +%s 2>/dev/null || echo $$((now + 86400)))
+          [ "$$next" -le "$$now" ] && next=$$((next + 86400))
+          echo "[backup] proximo dump en $$((next - now))s"
+          sleep $$((next - now))
+          backup.sh || echo "[backup] FALLO el backup"
+        done
+
+volumes:
+  pgdata:
+  redisdata:
+  storage_app:
+  backups:

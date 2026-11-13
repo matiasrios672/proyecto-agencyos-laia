@@ -1,0 +1,185 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.tsx';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Identidad Laia (colores tomados del logo oficial):
+ *   azul marino  #162660  → color de marca, barra lateral y botones principales
+ *   durazno      #F5A773  → acento cálido (indicadores, avisos)
+ *   celeste      #6AB9CF  → acento frío (foco, modo oscuro)
+ * En modo oscuro el celeste pasa a ser el color de acción, porque el marino no contrasta sobre fondo oscuro.
+ */
+:root {
+    --brand-navy: #162660;
+    --brand-peach: #f5a773;
+    --brand-sky: #6ab9cf;
+
+    --background: #f6f7fc;
+    --foreground: #121b47;
+    --card: #ffffff;
+    --card-foreground: #121b47;
+    --popover: #ffffff;
+    --popover-foreground: #121b47;
+    --primary: #162660;
+    --primary-foreground: #ffffff;
+    --secondary: #eceff8;
+    --secondary-foreground: #162660;
+    --muted: #f0f2f9;
+    --muted-foreground: #5b6489;
+    --accent: #e6ebf7;
+    --accent-foreground: #162660;
+    --border: #e0e4f1;
+    --input: #d2d8ea;
+    --ring: #6ab9cf;
+    --success: #12935a;
+    --warning: #b8620a;
+    --danger: #d4352f;
+
+    --sidebar: #162660;
+    --sidebar-foreground: #ecf0fc;
+    --sidebar-muted: #a3aed6;
+    --sidebar-hover: rgb(255 255 255 / 0.07);
+    --sidebar-active: rgb(255 255 255 / 0.13);
+    --sidebar-border: rgb(255 255 255 / 0.1);
+
+    /* Gráficos: pasos de las tonalidades de marca validados con validate_palette.js (CVD, luminosidad, croma).
+       Orden fijo: 1 celeste (ganancia neta) · 2 durazno (liquidaciones) · 3 índigo (egresos). */
+    --chart-1: #2a9dc4;
+    --chart-2: #ee8a43;
+    --chart-3: #4c63ba;
+    --chart-grid: #e4e8f3;
+
+    --radius: 0.625rem;
+    --shadow-pop: 0 10px 30px -8px rgb(22 38 96 / 0.28), 0 2px 6px rgb(22 38 96 / 0.08);
+}
+
+.dark {
+    --background: #0a0f2a;
+    --foreground: #e8ecfa;
+    --card: #101739;
+    --card-foreground: #e8ecfa;
+    --popover: #141c45;
+    --popover-foreground: #e8ecfa;
+    --primary: #6ab9cf;
+    --primary-foreground: #0a1236;
+    --secondary: #19224f;
+    --secondary-foreground: #e8ecfa;
+    --muted: #131a40;
+    --muted-foreground: #9ba6cd;
+    --accent: #1b265a;
+    --accent-foreground: #c3e6f0;
+    --border: #232d5e;
+    --input: #2d3870;
+    --ring: #6ab9cf;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --danger: #f87171;
+
+    --sidebar: #0c1235;
+    --chart-1: #38a0c6;
+    --chart-2: #d9742f;
+    --chart-3: #6b7fd8;
+    --chart-grid: #1f2858;
+    --shadow-pop: 0 10px 30px -8px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+@theme inline {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --font-display: 'Montserrat', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-grid: var(--chart-grid);
+    --color-navy: var(--brand-navy);
+    --color-peach: var(--brand-peach);
+    --color-sky: var(--brand-sky);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-danger: var(--danger);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-muted: var(--sidebar-muted);
+    --color-sidebar-hover: var(--sidebar-hover);
+    --color-sidebar-active: var(--sidebar-active);
+    --color-sidebar-border: var(--sidebar-border);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --shadow-pop: var(--shadow-pop);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    html {
+        font-size: 14px;
+    }
+    body {
+        @apply bg-background text-foreground;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+        letter-spacing: -0.02em;
+    }
+    ::selection {
+        background: color-mix(in srgb, var(--brand-sky) 35%, transparent);
+    }
+}
+
+/* Fondo de marca (login, portadas): marino con destellos durazno y celeste, como el isotipo. */
+.brand-gradient {
+    background:
+        radial-gradient(55% 55% at 88% 8%, rgb(245 167 115 / 0.45), transparent 62%),
+        radial-gradient(65% 60% at 8% 95%, rgb(106 185 207 / 0.4), transparent 65%),
+        linear-gradient(160deg, #1d3380 0%, #162660 52%, #0e1944 100%);
+}
+
+/* Celebración al publicar una tarjeta (confeti). Con "reducir movimiento" las piezas desaparecen al instante. */
+@keyframes confetti-burst {
+    0% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.6);
+        opacity: 0;
+    }
+}
+
+.confetti-piece {
+    animation: confetti-burst 1.3s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}

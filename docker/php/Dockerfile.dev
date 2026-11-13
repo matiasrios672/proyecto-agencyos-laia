@@ -1,0 +1,18 @@
+FROM php:8.3-fpm-bookworm
+
+ARG UID=1000
+ARG GID=1000
+
+COPY --from=ghcr.io/mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+RUN apt-get update && apt-get install -y --no-install-recommends git unzip curl postgresql-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && install-php-extensions pdo_pgsql pgsql redis gd intl zip bcmath pcntl opcache exif
+
+RUN groupadd -g ${GID} app && useradd -u ${UID} -g ${GID} -m -s /bin/bash app
+
+COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/zz-dev.ini
+
+WORKDIR /var/www/html
+USER app

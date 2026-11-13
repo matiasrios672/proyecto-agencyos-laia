@@ -1,0 +1,59 @@
+# Control de versiones y herramientas de agentes / editor
+.git
+.gitattributes
+.gitignore
+.claude
+.idea
+.vscode
+.fleet
+.nova
+.zed
+.editorconfig
+.phpactor.json
+
+# Secretos y entornos locales (jamás dentro de la imagen)
+.env
+.env.*
+!.env.example
+!.env.production.example
+auth.json
+
+# Dependencias (se instalan dentro del build)
+vendor
+node_modules
+
+# Artefactos de build y cachés locales
+public/build
+public/hot
+public/storage
+bootstrap/cache/*.php
+.phpunit.cache
+.phpunit.result.cache
+*.log
+
+# Estado de runtime (datos privados: nunca en la imagen)
+storage/logs
+storage/pail
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing
+storage/app/*
+storage/*.key
+
+# Tests, QA y capturas
+tests
+tests/e2e
+phpunit.xml
+**/screenshots
+
+# Docker de desarrollo y documentación
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+docker/php
+docker/nginx
+README.md
+*.md
+Thumbs.db
+.DS_Store
