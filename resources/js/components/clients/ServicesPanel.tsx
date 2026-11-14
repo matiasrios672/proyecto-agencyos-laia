@@ -144,14 +144,14 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
     const choose = (value: string) => {
         setPick(value);
         if (value === 'new') {
-            form.setData((d) => ({ ...d, name: '', save_to_catalog: false }));
+            form.setData((d) => ({ ...d, name: '', amount: '', save_to_catalog: false }));
             return;
         }
         const entry = options.catalog.find((c) => String(c.id) === value);
         if (entry) {
             form.setData((d) => ({ ...d, name: entry.name, amount: entry.amount, currency: entry.currency, frequency: entry.frequency, save_to_catalog: false }));
         } else {
-            form.setData((d) => ({ ...d, name: '', save_to_catalog: false }));
+            form.setData((d) => ({ ...d, name: '', amount: '', save_to_catalog: false }));
         }
     };
 
