@@ -31,6 +31,7 @@ class ClientServiceRequest extends FormRequest
             'split_percent' => ['nullable', 'required_if:split_rule,porcentaje', 'numeric', 'between:0,100'],
             'split_amount' => ['nullable', 'required_if:split_rule,monto_fijo', 'numeric', 'min:0'],
             'status' => ['required', Rule::in(array_keys(ClientService::STATUSES))],
+            'save_to_catalog' => ['nullable', 'boolean'],
         ];
     }
 

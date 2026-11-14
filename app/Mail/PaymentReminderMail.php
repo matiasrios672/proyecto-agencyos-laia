@@ -3,8 +3,8 @@
 namespace App\Mail;
 
 use App\Models\Invoice;
+use App\Support\BankAccount;
 use App\Support\Money;
-use App\Support\Settings;
 
 class PaymentReminderMail extends TemplateMail
 {
@@ -15,7 +15,7 @@ class PaymentReminderMail extends TemplateMail
         return $this->type === 'mora' ? 'invoice.reminder_overdue' : 'invoice.reminder_before';
     }
 
-    protected function templateVars(): array
+    public function templateVars(): array
     {
         return [
             'nombre' => $this->invoice->client->displayName(),
@@ -24,19 +24,34 @@ class PaymentReminderMail extends TemplateMail
             'importe' => Money::format($this->invoice->amount, $this->invoice->currency),
             'vencimiento' => $this->invoice->due_date->locale('es')->translatedFormat('j \d\e F \d\e Y'),
             'vencimiento_corto' => $this->invoice->due_date->format('d/m'),
+            'plazo' => $this->deadline(),
             'datos_bancarios' => $this->bankBlock(),
         ];
+    }
+
+    /** "vence hoy", "vence mañana", "vence en 3 días" / "venció ayer", "venció hace 3 días". */
+    private function deadline(): string
+    {
+        $days = (int) today()->diffInDays($this->invoice->due_date->startOfDay(), false);
+
+        return match (true) {
+            $days === 0 => 'vence hoy',
+            $days === 1 => 'vence mañana',
+            $days > 1 => "vence en {$days} días",
+            $days === -1 => 'venció ayer',
+            default => 'venció hace '.abs($days).' días',
+        };
     }
 
     /** Datos de transferencia como lista Markdown (vacío si no hay ninguno cargado). */
     private function bankBlock(): string
     {
-        $lines = collect(['holder' => 'Titular', 'cuit' => 'CUIT', 'name' => 'Banco', 'cbu' => 'CBU / CVU', 'alias' => 'Alias'])
-            ->mapWithKeys(fn ($label, $key) => [$label => Settings::get("bank.{$key}")])
-            ->filter()
-            ->map(fn ($value, $label) => '- **'.e($label).':** '.e($value))
+        $fields = BankAccount::forInvoice($this->invoice)['fields'];
+        $lines = collect(BankAccount::FIELDS)
+            ->filter(fn ($f, $key) => isset($fields[$key]))
+            ->map(fn ($f, $key) => '- **'.e($f[0]).':** '.e($fields[$key]))
             ->implode("\n");
 
-        return $lines === '' ? '' : "Podés abonar por transferencia a:\n\n".$lines;
+        return $lines === '' ? '' : "**Datos para transferir**\n\n".$lines;
     }
 }

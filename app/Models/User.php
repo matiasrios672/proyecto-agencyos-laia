@@ -63,6 +63,19 @@ class User extends Authenticatable
         'two_factor_last_step',
     ];
 
+    /** Dirección gestiona empleados; solo el sysadmin gestiona a otros dueños, y a nadie se lo gestiona a sí mismo desde Equipo. */
+    public function manageableBy(User $actor): bool
+    {
+        if ($this->isSysadmin()) {
+            return $actor->isSysadmin() && ! $actor->is($this);
+        }
+        if ($this->hasRole('dueno')) {
+            return $actor->isSysadmin();
+        }
+
+        return true;
+    }
+
     public function hasTwoFactorEnabled(): bool
     {
         return $this->two_factor_secret !== null && $this->two_factor_confirmed_at !== null;

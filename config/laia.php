@@ -69,7 +69,7 @@ return [
         ],
         'Marca y contacto (correos)' => [
             'brand.company' => ['label' => 'Nombre de la empresa', 'type' => 'text', 'default' => 'Laia Estudio Creativo Digital'],
-            'brand.tagline' => ['label' => 'Bajada de la marca (cabecera del correo)', 'type' => 'text', 'default' => 'Estudio creativo digital'],
+            'brand.tagline' => ['label' => 'Bajada de la marca (uso interno; los correos ya no la repiten bajo el logo)', 'type' => 'text', 'default' => 'Estudio creativo digital'],
             'brand.logo_url' => ['label' => 'URL pública del logo blanco (vacío = logo oficial incluido)', 'type' => 'text', 'default' => ''],
             'brand.website' => ['label' => 'Sitio web (con https://)', 'type' => 'text', 'default' => ''],
             'brand.email' => ['label' => 'Email de contacto', 'type' => 'text', 'default' => ''],
@@ -91,6 +91,7 @@ return [
         'Mora y suspensión' => [
             'dunning.auto_suspend' => ['label' => 'Suspender automáticamente por mora', 'type' => 'boolean', 'default' => '0'],
             'dunning.grace_days' => ['label' => 'Días de gracia antes de suspender', 'type' => 'number', 'default' => '10'],
+            'dunning.reminders_auto' => ['label' => 'Enviar avisos de cobro automáticamente (si está apagado, los revisás y enviás desde Cobranzas)', 'type' => 'boolean', 'default' => '0'],
             'dunning.reminder_before_days' => ['label' => 'Recordatorio previo (días antes)', 'type' => 'number', 'default' => '3'],
             'dunning.reminder_after_days' => ['label' => 'Recordatorio de mora (días después)', 'type' => 'number', 'default' => '1'],
         ],

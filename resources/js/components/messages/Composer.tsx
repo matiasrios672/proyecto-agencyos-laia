@@ -161,7 +161,7 @@ export function Composer({ mentionables, onSubmit, placeholder = 'Escribí un me
                 </ul>
             )}
 
-            <div className="flex items-end gap-2">
+            <div className={cn('flex items-end gap-2', !onCancel && 'rounded-3xl border border-input bg-card p-1.5 pl-4 shadow-xs transition-shadow focus-within:ring-2 focus-within:ring-ring')}>
                 <textarea
                     ref={ref}
                     rows={1}
@@ -182,21 +182,24 @@ export function Composer({ mentionables, onSubmit, placeholder = 'Escribí un me
                     }}
                     onSelect={(e) => setTrigger(detectMention(e.currentTarget.value, e.currentTarget.selectionStart))}
                     onKeyDown={onKeyDown}
-                    className="max-h-40 min-h-10 flex-1 resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className={cn(
+                        'max-h-40 min-h-9 flex-1 resize-none bg-transparent py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:opacity-50',
+                        onCancel && 'min-h-10 rounded-lg border border-input bg-card px-3 shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                    )}
                 />
                 {onCancel && (
                     <Button type="button" variant="ghost" onClick={onCancel}>
                         Cancelar
                     </Button>
                 )}
-                <Button type="submit" disabled={busy || disabled || !text.trim()} aria-label={submitLabel}>
+                <Button type="submit" disabled={busy || disabled || !text.trim()} aria-label={submitLabel} className={cn(!onCancel && 'size-9 shrink-0 rounded-full px-0')}>
                     {busy ? <Loader2 className="animate-spin" /> : <Send />}
-                    <span className={cn(onCancel ? '' : 'hidden sm:inline')}>{submitLabel}</span>
+                    {onCancel && <span>{submitLabel}</span>}
                 </Button>
             </div>
 
-            <div className="mt-1.5 flex items-start justify-between gap-3 text-xs text-muted-foreground">
-                <p>
+            <div className="mt-1.5 flex items-start justify-between gap-3 px-3 text-xs text-muted-foreground">
+                <p className="hidden sm:block">
                     <kbd className="font-sans">Enter</kbd> envía · <kbd className="font-sans">Shift + Enter</kbd> salto de línea · <kbd className="font-sans">@</kbd> menciona
                 </p>
                 {nearLimit && <span className={cn('tabular-nums', text.length >= MAX_MESSAGE_LENGTH && 'font-medium text-danger')}>{text.length}/{MAX_MESSAGE_LENGTH}</span>}

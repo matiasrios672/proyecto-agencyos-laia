@@ -34,6 +34,17 @@ class Brand
         return self::value('brand.company') ?? 'Laia Estudio Creativo Digital';
     }
 
+    /**
+     * Nombre corto para firmas y asuntos: el logo ya dice "Estudio Creativo Digital", así que no se repite.
+     * ("Laia Estudio Creativo Digital" → "Laia"). Si el nombre configurado no termina así, se usa tal cual.
+     */
+    public static function shortName(): string
+    {
+        $short = trim((string) preg_replace('/\s+estudio\s+creativo(\s+digital)?$/iu', '', self::company()));
+
+        return $short !== '' ? $short : self::company();
+    }
+
     public static function tagline(): ?string
     {
         return self::value('brand.tagline');

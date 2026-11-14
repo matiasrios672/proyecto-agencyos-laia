@@ -8,6 +8,8 @@ use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\BankDetailsController;
+use App\Http\Controllers\CollectionsController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InvoiceController;
@@ -43,6 +45,7 @@ Route::middleware('auth')->group(function () {
     // Perfil propio y notificaciones internas.
     Route::get('/perfil', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/perfil', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/perfil/datos-bancarios', [BankDetailsController::class, 'updateOwn'])->name('profile.bank');
     Route::put('/perfil/contrasena', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('profile.password');
     Route::get('/notificaciones', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notificaciones/leer', [NotificationController::class, 'markAllRead'])->name('notifications.read_all');
@@ -56,12 +59,17 @@ Route::middleware('auth')->group(function () {
     // Finanzas: ver = finance.view · modificar = finance.manage. Las liquidaciones también las ve cada empleado (las suyas).
     Route::middleware('can:finance.view')->group(function () {
         Route::get('/finanzas', FinanceController::class)->name('finance.dashboard');
+        Route::get('/cobranzas', [CollectionsController::class, 'index'])->name('collections.index');
+        Route::get('/cobranzas/avisos/{invoice}/{type}/vista-previa', [CollectionsController::class, 'preview'])->name('collections.preview');
         Route::get('/cobros', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('/egresos', [ExpenseController::class, 'index'])->name('expenses.index');
         Route::get('/comunicados', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/comunicados/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
     });
     Route::middleware('can:finance.manage')->group(function () {
+        Route::post('/cobranzas/avisos', [CollectionsController::class, 'send'])->middleware('throttle:20,1')->name('collections.send');
+        Route::post('/cobranzas/modo', [CollectionsController::class, 'mode'])->name('collections.mode');
+        Route::post('/clientes/{client}/avisos', [CollectionsController::class, 'pause'])->name('collections.pause');
         Route::post('/cobros', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::post('/cobros/generar', [InvoiceController::class, 'generate'])->middleware('throttle:10,1')->name('invoices.generate');
         Route::post('/cobros/{invoice}/pagar', [InvoiceController::class, 'pay'])->name('invoices.pay');
@@ -110,6 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [EmployeeController::class, 'index'])->name('index');
         Route::post('/', [EmployeeController::class, 'store'])->name('store');
         Route::put('/{user}', [EmployeeController::class, 'update'])->name('update');
+        Route::put('/{user}/datos-bancarios', [BankDetailsController::class, 'update'])->name('bank');
         Route::post('/{user}/invitacion', [EmployeeController::class, 'resendInvitation'])->name('invite');
         Route::post('/{user}/estado', [EmployeeController::class, 'toggleActive'])->name('toggle');
         Route::post('/{user}/clave', [EmployeeController::class, 'setPassword'])->middleware('throttle:20,1')->name('password');

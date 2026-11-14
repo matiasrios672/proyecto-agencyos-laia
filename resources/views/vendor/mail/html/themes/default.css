@@ -150,9 +150,10 @@ img {
 
 .header-stripe {
     background-color: #f5a773;
-    height: 4px;
-    line-height: 4px;
-    font-size: 4px;
+    background-image: linear-gradient(90deg, #f5a773 0%, #f5a773 55%, #6ab9cf 100%);
+    height: 5px;
+    line-height: 5px;
+    font-size: 5px;
 }
 
 /* Body */

@@ -113,7 +113,7 @@ class MailTemplates
         $contact = Brand::contact();
 
         return $vars + [
-            'empresa' => Brand::company(),
+            'empresa' => Brand::shortName(),
             'sitio_web' => $contact['website'] ?? '',
             'email_contacto' => $contact['email'] ?? '',
             'telefono' => $contact['phone'] ?? '',
@@ -189,12 +189,66 @@ class MailTemplates
             return self::button($label, $url);
         }, $text);
 
+        $text = self::visualComponents($text);
+
         return preg_replace_callback('/<x-panel>(.*?)<\/x-panel>/s', function ($m) {
+            if (trim($m[1]) === '') {
+                return ''; // panel vacío (p. ej. sin datos bancarios cargados): no se dibuja la caja
+            }
             $inner = trim((string) Markdown::parse(trim($m[1])));
             $inner = preg_replace('/\n\s*\n/', "\n", $inner);
 
             return "\n\n".'<table class="panel" width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td class="panel-content"><table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td class="panel-item">'
                 .$inner.'</td></tr></table></td></tr></table>'."\n\n";
+        }, $text);
+    }
+
+    /**
+     * Componentes visuales de los correos (estilos en línea para que se vean igual en todos los clientes de correo):
+     *   <x-estado tono="aviso|alerta|ok">Texto</x-estado>   → etiqueta de color arriba del saludo
+     *   <x-detalle>Etiqueta: valor (una por línea)</x-detalle> → tarjeta con filas; la fila "Importe" se destaca
+     *   <x-pasos>un paso por línea</x-pasos>                 → lista numerada con círculos
+     */
+    private static function visualComponents(string $text): string
+    {
+        $font = "font-family:'Montserrat','Segoe UI',Arial,sans-serif;";
+
+        $text = preg_replace_callback('/<x-estado(?:\s+tono="(\w+)")?\s*>(.*?)<\/x-estado>/s', function ($m) use ($font) {
+            [$bg, $fg, $dot] = match ($m[1] ?: 'aviso') {
+                'alerta' => ['#fde8e6', '#a3271b', '#dc2626'],
+                'ok' => ['#e4f4f8', '#0f5e73', '#6ab9cf'],
+                default => ['#fef0e4', '#8f4a12', '#f5a773'],
+            };
+
+            return "\n\n".'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px;"><tr>'
+                .'<td style="background:'.$bg.';border-radius:999px;padding:6px 14px 6px 12px;'.$font.'font-size:12px;font-weight:700;letter-spacing:.4px;color:'.$fg.';">'
+                .'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'.$dot.';margin-right:8px;"></span>'.trim($m[2])
+                .'</td></tr></table>'."\n\n";
+        }, $text);
+
+        $text = preg_replace_callback('/<x-detalle>(.*?)<\/x-detalle>/s', function ($m) use ($font) {
+            $rows = collect(preg_split('/\R/', trim($m[1])))
+                ->map(fn ($line) => array_map('trim', explode(':', $line, 2)))
+                ->filter(fn ($p) => count($p) === 2 && $p[1] !== '')
+                ->map(function ($p, $i) use ($font) {
+                    $big = mb_strtolower($p[0]) === 'importe';
+                    $border = $i === 0 ? '' : 'border-top:1px solid #e3e7f1;';
+
+                    return '<tr><td style="padding:12px 18px;'.$border.$font.'font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#8a93ad;width:38%;">'.$p[0].'</td>'
+                        .'<td style="padding:12px 18px;'.$border.$font.'text-align:right;color:#162660;'
+                        .($big ? 'font-size:22px;font-weight:800;' : 'font-size:14px;font-weight:600;').'">'.$p[1].'</td></tr>';
+                })->implode('');
+
+            return $rows === '' ? '' : "\n\n".'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 22px;background:#f7f8fc;border:1px solid #e3e7f1;border-top:4px solid #162660;border-radius:10px;">'.$rows.'</table>'."\n\n";
+        }, $text);
+
+        return preg_replace_callback('/<x-pasos>(.*?)<\/x-pasos>/s', function ($m) use ($font) {
+            $rows = collect(preg_split('/\R/', trim($m[1])))->map('trim')->filter()->values()
+                ->map(fn ($step, $i) => '<tr><td valign="top" style="padding:0 12px 12px 0;width:28px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="width:26px;height:26px;border-radius:50%;background:#162660;color:#ffffff;'.$font.'font-size:12px;font-weight:700;">'.($i + 1).'</td></tr></table></td>'
+                    .'<td valign="top" style="padding:3px 0 12px;'.$font.'font-size:14px;line-height:1.5;color:#3b4460;">'.$step.'</td></tr>')
+                ->implode('');
+
+            return $rows === '' ? '' : "\n\n".'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;">'.$rows.'</table>'."\n\n";
         }, $text);
     }
 

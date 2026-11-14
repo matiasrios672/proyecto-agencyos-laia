@@ -9,6 +9,7 @@ use App\Enums\SplitRule;
 use App\Enums\TaxCondition;
 use App\Enums\VaultCategory;
 use App\Http\Requests\ClientRequest;
+use App\Models\CatalogService;
 use App\Models\Client;
 use App\Models\ClientService;
 use App\Models\User;
@@ -30,8 +31,12 @@ class ClientController extends Controller
             'status' => ['nullable', 'in:'.implode(',', array_column(AccountStatus::cases(), 'value'))],
         ]);
 
-        $clients = Client::query()
-            ->visibleTo($request->user())
+        $user = $request->user();
+        $canFinance = $user->can('finance.view');
+
+        $paginator = Client::query()
+            ->visibleTo($user)
+            ->with('users:id,name')
             ->withCount('users')
             ->when($filters['q'] ?? null, function ($query, $q) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
@@ -44,20 +49,50 @@ class ClientController extends Controller
             ->when($filters['status'] ?? null, fn ($query, $s) => $query->where('account_status', $s))
             ->orderBy('business_name')
             ->paginate(12)
-            ->withQueryString()
-            ->through(fn (Client $c) => [
+            ->withQueryString();
+
+        // Datos de cada tarjeta, en pocas consultas para toda la página (nunca una por cliente).
+        $ids = $paginator->getCollection()->pluck('id');
+        $activeServices = ClientService::whereIn('client_id', $ids)->where('status', 'activo')->get()->groupBy('client_id');
+        $pending = $canFinance
+            ? \App\Models\Invoice::pending()->whereIn('client_id', $ids)->get()->groupBy('client_id')
+            : collect();
+
+        $clients = $paginator->through(function (Client $c) use ($activeServices, $pending, $canFinance) {
+            $services = $activeServices->get($c->id, collect());
+            $due = $pending->get($c->id, collect());
+            $sum = fn ($rows) => $rows->groupBy(fn ($r) => $r->currency->value)
+                ->map(fn ($g, $code) => Money::format((int) $g->sum('amount'), $code))->values()->all();
+
+            return [
                 'id' => $c->id,
                 'name' => $c->displayName(),
                 'business_name' => $c->business_name,
                 'tax_id' => $c->tax_id,
                 'email' => $c->email,
                 'phone' => $c->phone,
+                'whatsapp' => $c->whatsapp,
                 'account_status' => $c->account_status->value,
                 'is_active' => $c->is_active,
                 'team_count' => $c->users_count,
-            ]);
+                'team' => $c->users->take(4)->map(fn (User $u) => $u->name)->values(),
+                'services_count' => $services->count(),
+                // Montos solo para quien puede ver finanzas.
+                'monthly' => $canFinance ? $sum($services->where('frequency.value', 'mensual')) : null,
+                'pending' => $canFinance ? $sum($due) : null,
+                'overdue_count' => $canFinance ? $due->filter(fn ($i) => $i->isOverdue())->count() : null,
+            ];
+        });
+
+        $counts = Client::query()->visibleTo($user)->selectRaw('account_status, count(*) as total')->groupBy('account_status')->pluck('total', 'account_status');
 
         return Inertia::render('Clients/Index', [
+            'stats' => [
+                'total' => (int) $counts->sum(),
+                'al_dia' => (int) ($counts['al_dia'] ?? 0),
+                'por_vencer' => (int) ($counts['por_vencer'] ?? 0),
+                'deuda' => (int) ($counts['deuda'] ?? 0),
+            ],
             'clients' => $clients,
             'filters' => ['q' => $filters['q'] ?? '', 'status' => $filters['status'] ?? ''],
             'statusOptions' => AccountStatus::options(),
@@ -166,7 +201,20 @@ class ClientController extends Controller
                     'status' => $i->effectiveStatus()->value,
                 ])
                 : [],
+            // Indicadores de la cabecera de la ficha (solo con permiso de finanzas).
+            'summary' => $canFinance ? $this->financeSummary($client) : null,
             'serviceOptions' => $canFinance ? [
+                // Servicios del catálogo para elegir al contratar uno (precio y frecuencia sugeridos, editables).
+                'catalog' => CatalogService::where('is_active', true)->orderBy('name')->get()->map(fn (CatalogService $c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'description' => $c->description,
+                    'amount' => Money::toDecimal($c->price),
+                    'amount_label' => Money::format($c->price, $c->currency),
+                    'currency' => $c->currency->value,
+                    'frequency' => $c->frequency->value,
+                ])->values(),
+                'canSaveToCatalog' => $user->can('create', CatalogService::class),
                 'frequencies' => Frequency::options(),
                 'billingTimings' => \App\Enums\BillingTiming::options(),
                 'splitRules' => SplitRule::options(),
@@ -188,6 +236,22 @@ class ClientController extends Controller
                     ->get(['id', 'name', 'job_title'])
                 : [],
         ]);
+    }
+
+    /** @return array{services_active: int, monthly: list<string>, pending: list<string>, overdue_count: int} */
+    private function financeSummary(Client $client): array
+    {
+        $services = $client->services()->where('status', 'activo')->get();
+        $pending = $client->invoices()->pending()->get();
+        $sum = fn ($rows) => $rows->groupBy(fn ($r) => $r->currency->value)
+            ->map(fn ($g, $code) => Money::format((int) $g->sum('amount'), $code))->values()->all();
+
+        return [
+            'services_active' => $services->count(),
+            'monthly' => $sum($services->filter(fn (ClientService $s) => $s->frequency->value === 'mensual')),
+            'pending' => $sum($pending),
+            'overdue_count' => $pending->filter(fn ($i) => $i->isOverdue())->count(),
+        ];
     }
 
     private function splitLabel(ClientService $s): string

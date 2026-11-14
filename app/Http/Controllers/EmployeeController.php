@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\EmployeeInvitation;
 use App\Notifications\PasswordChangedByAdmin;
 use App\Notifications\TwoFactorWasReset;
+use App\Support\BankAccount;
 use App\Support\TwoFactor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +39,9 @@ class EmployeeController extends Controller
                 'clients_count' => $u->clients_count,
                 'invited_at' => $u->invited_at?->toIso8601String(),
                 'editable' => $this->canManage($actor, $u),
+                // Los datos bancarios solo viajan al navegador de quien puede editarlos.
+                'bank' => $this->canManage($actor, $u) ? $this->bankProps($u) : null,
+                'bank_loaded' => BankAccount::hasData($u),
             ]);
 
         return Inertia::render('Employees/Index', [
@@ -190,14 +194,19 @@ class EmployeeController extends Controller
     /** Dirección gestiona empleados; solo el sysadmin crea / edita a otros dueños. */
     private function canManage(User $actor, User $target): bool
     {
-        if ($target->isSysadmin()) {
-            return $actor->isSysadmin() && ! $actor->is($target);
-        }
-        if ($target->hasRole('dueno')) {
-            return $actor->isSysadmin();
-        }
+        return $target->manageableBy($actor);
+    }
 
-        return true;
+    /** @return array<string, string> */
+    public static function bankProps(User $user): array
+    {
+        return [
+            'bank_holder' => (string) $user->bank_holder,
+            'bank_tax_id' => (string) $user->bank_tax_id,
+            'bank_name' => (string) $user->bank_name,
+            'bank_cbu' => (string) $user->bank_cbu,
+            'bank_alias' => (string) $user->bank_alias,
+        ];
     }
 
     /** @return list<string> */

@@ -38,9 +38,16 @@ export interface ClientRow {
     tax_id: string | null;
     email: string | null;
     phone: string | null;
+    whatsapp: string | null;
     account_status: string;
     is_active: boolean;
     team_count: number;
+    team: string[];
+    services_count: number;
+    /** Montos por moneda; null si el usuario no ve finanzas. */
+    monthly: string[] | null;
+    pending: string[] | null;
+    overdue_count: number | null;
 }
 
 export interface ClientDetail {

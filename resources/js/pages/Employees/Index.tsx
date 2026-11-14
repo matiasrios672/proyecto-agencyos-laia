@@ -1,6 +1,7 @@
 import { router, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { Check, Copy, KeyRound, Loader2, MailPlus, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserCheck, UserX, UsersRound } from 'lucide-react';
+import { BankDetailsForm, type BankData } from '@/components/profile/BankDetailsForm';
+import { Check, Copy, KeyRound, Landmark, Loader2, MailPlus, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserCheck, UserX, UsersRound } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -27,6 +28,8 @@ interface Employee {
     clients_count: number;
     invited_at: string | null;
     editable: boolean;
+    bank: BankData | null;
+    bank_loaded: boolean;
 }
 
 interface Props {
@@ -40,6 +43,7 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
     const [toggling, setToggling] = useState<Employee | null>(null);
     const [resetting2fa, setResetting2fa] = useState<Employee | null>(null);
     const [passwordFor, setPasswordFor] = useState<Employee | null>(null);
+    const [bankFor, setBankFor] = useState<Employee | null>(null);
     const [busy, setBusy] = useState(false);
 
     return (
@@ -76,8 +80,18 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
                                     {e.clients_count} {e.clients_count === 1 ? 'cliente' : 'clientes'}
                                 </div>
                                 <UserStateBadge state={e.state} />
+                                {e.state !== 'pending' && (
+                                    <Badge variant={e.bank_loaded ? 'primary' : 'default'} title={e.bank_loaded ? 'Los clientes de sus servicios transfieren a su cuenta' : 'Sin datos bancarios: los correos de cobro usan la cuenta de la agencia'}>
+                                        <Landmark className="size-3" /> {e.bank_loaded ? 'Cuenta cargada' : 'Sin cuenta'}
+                                    </Badge>
+                                )}
                                 {e.editable && (
                                     <div className="flex gap-1">
+                                        {e.bank && (
+                                            <Button variant="ghost" size="icon" className="size-8" aria-label={`Datos bancarios de ${e.name}`} title="Datos bancarios (a dónde transfieren sus clientes)" onClick={() => setBankFor(e)}>
+                                                <Landmark />
+                                            </Button>
+                                        )}
                                         {e.state === 'pending' && (
                                             <Button variant="ghost" size="sm" onClick={() => router.post(`/equipo/${e.id}/invitacion`, {}, { preserveScroll: true })}>
                                                 <Send /> Reenviar
@@ -149,7 +163,36 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
                     router.post(`/equipo/${toggling.id}/estado`, {}, { preserveScroll: true, onFinish: () => { setBusy(false); setToggling(null); } });
                 }}
             />
+            <BankDialog target={bankFor} onClose={() => setBankFor(null)} />
         </AppLayout>
+    );
+}
+
+function BankDialog({ target, onClose }: { target: Employee | null; onClose: () => void }) {
+    return (
+        <Dialog open={target !== null} onOpenChange={(o) => !o && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Datos bancarios de {target?.name}</DialogTitle>
+                    <DialogDescription>Cuando un servicio lo tiene a cargo, el correo de cobro le muestra al cliente esta cuenta. Si quedan vacíos, se usa la de la agencia.</DialogDescription>
+                </DialogHeader>
+                {target?.bank && (
+                    <BankDetailsForm
+                        key={target.id}
+                        action={`/equipo/${target.id}/datos-bancarios`}
+                        initial={target.bank}
+                        idPrefix={`emp-${target.id}`}
+                        onSaved={onClose}
+                        footer={({ processing, dirty }) => (
+                            <DialogFooter className="sm:col-span-2">
+                                <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                                <Button type="submit" disabled={processing || !dirty}>{processing && <Loader2 className="animate-spin" />} Guardar</Button>
+                            </DialogFooter>
+                        )}
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SplitRule;
 use App\Http\Requests\ClientServiceRequest;
+use App\Models\CatalogService;
 use App\Models\Client;
 use App\Models\ClientService;
 use App\Models\User;
@@ -27,7 +28,31 @@ class ClientServiceController extends Controller
         activity('clients')->performedOn($client)->causedBy($request->user())
             ->withProperties(['service' => $service->name])->log('Servicio contratado agregado');
 
-        return back()->with('success', 'Servicio agregado.');
+        $savedToCatalog = $request->boolean('save_to_catalog') && $this->addToCatalog($request, $service);
+
+        return back()->with('success', $savedToCatalog ? 'Servicio agregado y guardado en el catálogo.' : 'Servicio agregado.');
+    }
+
+    /** Un servicio nuevo escrito a mano puede quedar en el catálogo para los próximos clientes. Solo si no existe ya uno igual. */
+    private function addToCatalog(Request $request, ClientService $service): bool
+    {
+        if (! Gate::allows('create', CatalogService::class)) {
+            return false;
+        }
+        if (CatalogService::whereRaw('lower(name) = ?', [mb_strtolower($service->name)])->exists()) {
+            return false;
+        }
+
+        $entry = CatalogService::create([
+            'name' => $service->name,
+            'price' => $service->amount,
+            'currency' => $service->currency,
+            'frequency' => $service->frequency,
+            'is_active' => true,
+        ]);
+        activity('catalog')->performedOn($entry)->causedBy($request->user())->log('Servicio agregado al catálogo desde un cliente');
+
+        return true;
     }
 
     public function update(ClientServiceRequest $request, Client $client, ClientService $service): RedirectResponse

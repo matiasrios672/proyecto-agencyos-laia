@@ -1,7 +1,8 @@
 import { useForm } from '@inertiajs/react';
-import { Briefcase, Building2, CalendarDays, Loader2, Mail } from 'lucide-react';
+import { Briefcase, Building2, CalendarDays, Landmark, Loader2, Mail } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { Avatar } from '@/components/avatar';
+import { BankDetailsForm, type BankData } from '@/components/profile/BankDetailsForm';
 import { TwoFactorCard, type TwoFactorState } from '@/components/profile/TwoFactorCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,10 @@ interface Props {
     profile: { name: string; email: string; job_title: string | null; role_label: string | null; member_since: string | null; clients_count: number };
     twoFactor: TwoFactorState;
     recoveryCodes: string[] | null;
+    bank: BankData;
 }
 
-export default function Edit({ profile, twoFactor, recoveryCodes }: Props) {
+export default function Edit({ profile, twoFactor, recoveryCodes, bank }: Props) {
     const info = useForm({ name: profile.name, job_title: profile.job_title ?? '' });
     const pass = useForm({ current_password: '', password: '', password_confirmation: '' });
 
@@ -113,6 +115,16 @@ export default function Edit({ profile, twoFactor, recoveryCodes }: Props) {
                                 </div>
                             </CardContent>
                         </form>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Landmark className="size-4 text-muted-foreground" /> Mis datos bancarios</CardTitle>
+                            <CardDescription>Los clientes de los servicios que tenés a cargo transfieren a esta cuenta: se muestra en sus correos de cobro. Si lo dejás vacío, se usa la cuenta de la agencia.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <BankDetailsForm action="/perfil/datos-bancarios" initial={bank} idPrefix="me" />
+                        </CardContent>
                     </Card>
 
                     <TwoFactorCard twoFactor={twoFactor} recoveryCodes={recoveryCodes} />

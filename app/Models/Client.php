@@ -29,6 +29,7 @@ class Client extends Model
             'account_status' => AccountStatus::class,
             'tax_condition' => TaxCondition::class,
             'is_active' => 'boolean',
+            'reminders_paused' => 'boolean',
             'laiatime_synced_at' => 'datetime',
             'laiatime_suspended_at' => 'datetime',
             'laiatime_suspended_by_system' => 'boolean',

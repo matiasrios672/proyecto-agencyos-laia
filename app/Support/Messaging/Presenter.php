@@ -58,7 +58,9 @@ class Presenter
 
         if ($conversation->isDirect()) {
             $partner = $conversation->participants->firstWhere('id', '!=', $viewer->id) ?? $conversation->participants()->where('users.id', '!=', $viewer->id)->first();
-            $other = $partner ? ['id' => $partner->id, 'name' => $partner->name, 'job_title' => $partner->job_title, 'active' => (bool) $partner->is_active] : null;
+            $other = $partner ? ['id' => $partner->id, 'name' => $partner->name, 'job_title' => $partner->job_title, 'active' => (bool) $partner->is_active,
+                // Hasta qué mensaje leyó la otra persona (para las tildes de "visto").
+                'read_id' => $partner->pivot?->last_read_message_id] : null;
         } elseif ($client = $conversation->subject()) {
             /** @var Client $client */
             $subject = ['type' => $conversation->subject_type, 'id' => $client->id, 'name' => $client->displayName(), 'url' => "/clientes/{$client->id}"];

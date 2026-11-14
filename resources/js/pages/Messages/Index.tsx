@@ -96,7 +96,7 @@ export default function Index({ selected, teammates }: Props) {
                 {/* Conversación */}
                 <div className={cn('min-w-0 flex-1', current === null && 'hidden md:flex')}>
                     {current !== null ? (
-                        <ConversationView key={current} conversationId={current} onRead={() => void refresh()} onBack={() => select(null)} className="w-full" />
+                        <ConversationView key={current} conversationId={current} onRead={() => void refresh()} onBack={() => select(null)} className="h-full w-full" />
                     ) : (
                         <div className="m-auto flex flex-col items-center gap-2 px-6 text-center">
                             <span className="grid size-12 place-items-center rounded-full bg-accent text-accent-foreground">

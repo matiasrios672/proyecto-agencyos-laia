@@ -29,7 +29,19 @@ export interface ServiceRow {
     split_amount?: string | null;
 }
 
+export interface CatalogEntry {
+    id: number;
+    name: string;
+    description: string | null;
+    amount: string;
+    amount_label: string;
+    currency: string;
+    frequency: string;
+}
+
 export interface ServiceOptions {
+    catalog: CatalogEntry[];
+    canSaveToCatalog: boolean;
     frequencies: Options;
     billingTimings: Options;
     splitRules: Options;
@@ -124,10 +136,28 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
     const form = useForm({
         name: '', amount: '', currency: 'ARS', frequency: 'mensual', due_day: 10, billing_timing: 'adelantada',
         assigned_user_id: '' as number | '', split_rule: 'porcentaje', split_percent: '30', split_amount: '', status: 'activo',
+        save_to_catalog: false,
     });
+    // Alta: '' = todavía no eligió · id del catálogo · 'new' = escribirlo a mano. Al editar no se usa.
+    const [pick, setPick] = useState<string>('');
+
+    const choose = (value: string) => {
+        setPick(value);
+        if (value === 'new') {
+            form.setData((d) => ({ ...d, name: '', save_to_catalog: false }));
+            return;
+        }
+        const entry = options.catalog.find((c) => String(c.id) === value);
+        if (entry) {
+            form.setData((d) => ({ ...d, name: entry.name, amount: entry.amount, currency: entry.currency, frequency: entry.frequency, save_to_catalog: false }));
+        } else {
+            form.setData((d) => ({ ...d, name: '', save_to_catalog: false }));
+        }
+    };
 
     useEffect(() => {
         if (target === null) return;
+        setPick(target === 'new' && options.catalog.length === 0 ? 'new' : '');
         form.clearErrors();
         form.setData({
             name: service?.name ?? '',
@@ -141,6 +171,7 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
             split_percent: service?.split_percent != null ? String(service.split_percent) : '30',
             split_amount: service?.split_amount ?? '',
             status: service?.status ?? 'activo',
+            save_to_catalog: false,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
@@ -168,11 +199,37 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
                         <DialogDescription>Define cuánto se cobra, cuándo vence y cómo se reparte entre la agencia y el empleado.</DialogDescription>
                     </DialogHeader>
                     <DialogBody>
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="cs-name">Servicio *</Label>
-                            <Input id="cs-name" required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-                            <FieldError message={form.errors.name} />
-                        </div>
+                        {!service && options.catalog.length > 0 && (
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="cs-pick">Servicio del catálogo *</Label>
+                                <Select id="cs-pick" required value={pick} onChange={(e) => choose(e.target.value)}>
+                                    <option value="">Elegí un servicio…</option>
+                                    {options.catalog.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.name} · {c.amount_label}{c.frequency === 'mensual' ? ' / mes' : ''}</option>
+                                    ))}
+                                    <option value="new">＋ Otro servicio (nuevo)</option>
+                                </Select>
+                                {pick !== '' && pick !== 'new' && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {options.catalog.find((c) => String(c.id) === pick)?.description || 'Se completaron el monto y la frecuencia del catálogo: podés ajustarlos para este cliente.'}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        {(service || pick === 'new') && (
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="cs-name">{service ? 'Servicio *' : 'Nombre del servicio nuevo *'}</Label>
+                                <Input id="cs-name" required autoFocus={!service} value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                                <FieldError message={form.errors.name} />
+                                {!service && options.canSaveToCatalog && (
+                                    <label className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                        <input type="checkbox" className="size-4 accent-[var(--brand-navy)]" checked={form.data.save_to_catalog} onChange={(e) => form.setData('save_to_catalog', e.target.checked)} />
+                                        Guardarlo también en el catálogo para usarlo con otros clientes
+                                    </label>
+                                )}
+                            </div>
+                        )}
+                        {!service && pick === '' && options.catalog.length > 0 && <FieldError message={form.errors.name} />}
                         <div className="grid gap-4 sm:grid-cols-3">
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="cs-amount">Monto *</Label>

@@ -62,7 +62,10 @@ describe('semáforo del cliente', function () {
 });
 
 describe('recordatorios de pago', function () {
-    beforeEach(fn () => Mail::fake());
+    beforeEach(function () {
+        Mail::fake();
+        Settings::set('dunning.reminders_auto', '1');
+    });
 
     it('avisa antes del vencimiento, una sola vez', function () {
         $invoice = makeInvoice(['due_date' => today()->addDays(2)->toDateString()]);
@@ -149,10 +152,11 @@ describe('recordatorios de pago', function () {
         $mail->assertSeeInHtml('$ 280.000,00');
         $mail->assertSeeInHtml('laia.estudio.mp');
         $mail->assertSeeInHtml($invoice->number);
-        expect($mail->envelope()->subject)->toContain('Recordatorio de pago');
+        expect($mail->envelope()->subject)->toContain('vence en 2 días');
 
-        $overdue = new PaymentReminderMail($invoice, 'mora');
-        $overdue->assertSeeInHtml('venció');
-        expect($overdue->envelope()->subject)->toContain('vencido');
+        $late = makeInvoice(['due_date' => today()->subDays(3)->toDateString()]);
+        $overdue = new PaymentReminderMail($late, 'mora');
+        $overdue->assertSeeInHtml('venció hace 3 días');
+        expect($overdue->envelope()->subject)->toContain('venció');
     });
 });

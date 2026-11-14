@@ -16,6 +16,7 @@ import {
     MessagesSquare,
     Package,
     Plug,
+    ClipboardCheck,
     Receipt,
     ShieldCheck,
     SlidersHorizontal,
@@ -76,6 +77,7 @@ const groups: NavGroup[] = [
         id: 'finance',
         label: 'Finanzas',
         items: [
+            { label: 'Cobranzas', href: '/cobranzas', icon: ClipboardCheck, permission: 'finance.view' },
             { label: 'Resumen', href: '/finanzas', icon: LineChart, permission: 'finance.view' },
             { label: 'Cobros', href: '/cobros', icon: Receipt, permission: 'finance.view' },
             { label: 'Liquidaciones', href: '/liquidaciones', icon: HandCoins, anyOf: ['payouts.view_own', 'finance.view'] },

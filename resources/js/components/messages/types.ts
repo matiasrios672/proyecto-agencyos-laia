@@ -21,7 +21,7 @@ export interface ConversationDto {
     type: 'direct' | 'thread';
     title: string;
     subject: { type: string; id: number; name: string; url: string } | null;
-    other: { id: number; name: string; job_title: string | null; active: boolean } | null;
+    other: { id: number; name: string; job_title: string | null; active: boolean; read_id: number | null } | null;
     last: { preview: string; author: string | null; mine: boolean; at: string } | null;
     last_message_at: string | null;
     unread: number;

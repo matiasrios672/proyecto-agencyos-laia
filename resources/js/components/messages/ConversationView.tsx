@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowLeft, Building2, Loader2, MessageSquareText, Pencil, RefreshCw, Trash2, WifiOff } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Building2, Check, CheckCheck, Loader2, MessageSquareText, Pencil, RefreshCw, Trash2, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Avatar } from '@/components/avatar';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -22,6 +22,10 @@ interface Props {
     embedded?: boolean;
     className?: string;
 }
+
+/** Cada persona tiene su color de nombre (de la paleta de marca), siempre el mismo. */
+const NAME_TONES = ['text-navy', 'text-[#c2662b]', 'text-[#1f7f97]', 'text-[#6a3fb0]', 'text-[#1d7a4d]'];
+const nameTone = (userId: number) => NAME_TONES[userId % NAME_TONES.length];
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 const dayKey = (iso: string) => new Date(iso).toDateString();
@@ -164,7 +168,7 @@ export function ConversationView({ conversationId, onRead, onBack, embedded, cla
             )}
 
             <div className="relative min-h-0 flex-1">
-                <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensajes" className="h-full overflow-y-auto px-4 py-4">
+                <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensajes" className="h-full overflow-y-auto bg-muted/50 px-4 py-4">
                     {c.loading && (
                         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Cargando mensajes">
                             {[0, 1, 2].map((i) => (
@@ -211,13 +215,11 @@ export function ConversationView({ conversationId, onRead, onBack, embedded, cla
                                     return (
                                         <li key={m.id} className={cn(grouped ? 'mt-0' : 'mt-3')}>
                                             {newDay && (
-                                                <p className="my-3 text-center text-xs font-medium capitalize text-muted-foreground">{dayLabel(m.created_at)}</p>
+                                                <p className="my-4 flex justify-center"><span className="rounded-full bg-card px-3 py-1 text-xs font-medium capitalize text-muted-foreground shadow-xs ring-1 ring-border">{dayLabel(m.created_at)}</span></p>
                                             )}
                                             <div className={cn('group flex items-end gap-2', mine && 'flex-row-reverse')}>
                                                 {!mine && (grouped ? <span className="size-7 shrink-0" /> : <Avatar name={m.user.name} className="size-7 shrink-0 text-[10px]" />)}
                                                 <div className={cn('flex max-w-[85%] flex-col sm:max-w-[75%]', mine ? 'items-end' : 'items-start')}>
-                                                    {!mine && !grouped && <span className="mb-0.5 px-1 text-xs font-medium text-muted-foreground">{m.user.name}</span>}
-
                                                     {editing === m.id && m.body !== null ? (
                                                         <div className="w-[min(32rem,80vw)] rounded-xl border bg-card p-3">
                                                             <Composer
@@ -237,14 +239,26 @@ export function ConversationView({ conversationId, onRead, onBack, embedded, cla
                                                         <p className="rounded-2xl border border-dashed px-3 py-2 text-sm italic text-muted-foreground">Mensaje eliminado</p>
                                                     ) : (
                                                         <div className={cn('flex items-center gap-1', mine && 'flex-row-reverse')}>
-                                                            <p
+                                                            <div
                                                                 className={cn(
-                                                                    'whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm',
-                                                                    mine ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md bg-muted',
+                                                                    'rounded-2xl px-3.5 pb-1.5 pt-2 text-sm shadow-xs',
+                                                                    mine ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md border bg-card',
                                                                 )}
                                                             >
-                                                                <MessageText body={m.body ?? ''} mentions={m.mentions} mine={mine} />
-                                                            </p>
+                                                                {!mine && !grouped && <span className={cn('mb-0.5 block text-xs font-semibold', nameTone(m.user.id))}>{m.user.name}</span>}
+                                                                <p className="whitespace-pre-wrap break-words">
+                                                                    <MessageText body={m.body ?? ''} mentions={m.mentions} mine={mine} />
+                                                                </p>
+                                                                <span className={cn('mt-0.5 flex items-center justify-end gap-1 text-[10px] leading-none', mine ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                                                    {m.edited && 'editado · '}
+                                                                    {time(m.created_at)}
+                                                                    {mine && conversation?.type === 'direct' && (
+                                                                        (conversation.other?.read_id ?? 0) >= m.id
+                                                                            ? <CheckCheck className="size-3.5 text-sky" aria-label="Visto" />
+                                                                            : <Check className="size-3.5" aria-label="Enviado" />
+                                                                    )}
+                                                                </span>
+                                                            </div>
                                                             {mine && (
                                                                 <span className="flex gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100">
                                                                     <Button variant="ghost" size="icon" className="size-7" aria-label="Editar mensaje" onClick={() => setEditing(m.id)}>
@@ -257,10 +271,6 @@ export function ConversationView({ conversationId, onRead, onBack, embedded, cla
                                                             )}
                                                         </div>
                                                     )}
-                                                    <span className="mt-0.5 px-1 text-[11px] text-muted-foreground">
-                                                        {time(m.created_at)}
-                                                        {m.edited && ' · editado'}
-                                                    </span>
                                                 </div>
                                             </div>
                                         </li>

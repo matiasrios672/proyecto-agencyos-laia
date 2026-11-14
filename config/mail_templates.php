@@ -105,31 +105,47 @@ MD,
             'motive' => 'billing',
             'locked' => false,
             'enabled' => true,
-            'subject' => 'Recordatorio de pago · vence el {vencimiento_corto} · {empresa}',
+            'subject' => 'Tu cobro {numero} {plazo} · {importe}',
             'body' => <<<'MD'
-# Hola, {nombre}
+<x-estado tono="aviso">Cobro {plazo}</x-estado>
 
-Te recordamos que el pago de **{concepto}** (cobro {numero}) vence el **{vencimiento}**.
+# Hola, {nombre} 👋
+
+Se acerca el vencimiento de tu cobro. Te dejamos todo el detalle para que lo abones cuando te quede cómodo.
+
+<x-detalle>
+Concepto: {concepto}
+Cobro: {numero}
+Vencimiento: {vencimiento}
+Importe: {importe}
+</x-detalle>
 
 <x-panel>
-**Importe:** {importe}
+{datos_bancarios}
 </x-panel>
 
-{datos_bancarios}
+## ¿Cómo informar tu pago?
 
-Si ya realizaste el pago, avisanos respondiendo este correo con el comprobante y lo registramos. ¡Gracias!
+<x-pasos>
+Transferí el importe a los datos que figuran arriba.
+Respondé este correo con el comprobante, o enviánoslo por WhatsApp.
+Lo registramos y te confirmamos que lo recibimos.
+</x-pasos>
 
-Saludos,<br>
-Equipo {empresa}
+Si ya abonaste, no hace falta que hagas nada más: con el comprobante lo dejamos al día. ¡Gracias por confiar en nosotros!
+
+Un abrazo,<br>
+**El equipo de {empresa}**
 MD,
             'variables' => [
+                'plazo' => ['label' => 'Plazo del cobro (vence hoy / mañana / en N días)', 'sample' => 'vence en 3 días'],
                 'nombre' => ['label' => 'Nombre del cliente', 'sample' => 'Estudio Rivera'],
                 'concepto' => ['label' => 'Concepto del cobro', 'sample' => 'Abono mensual de redes sociales'],
                 'numero' => ['label' => 'Número de cobro', 'sample' => 'C-2026-0118'],
                 'importe' => ['label' => 'Importe formateado', 'sample' => 'ARS 180.000,00'],
                 'vencimiento' => ['label' => 'Fecha de vencimiento (larga)', 'sample' => '10 de diciembre de 2026'],
                 'vencimiento_corto' => ['label' => 'Fecha de vencimiento (dd/mm)', 'sample' => '10/12'],
-                'datos_bancarios' => ['label' => 'Bloque con datos bancarios (vacío si no están cargados)', 'sample' => "Podés abonar por transferencia a:\n\n- **Titular:** Laia Estudio Creativo Digital\n- **Banco:** Banco Ejemplo\n- **Alias:** laia.estudio", 'raw' => true],
+                'datos_bancarios' => ['label' => 'Bloque con datos bancarios (vacío si no están cargados)', 'sample' => "**Datos para transferir**\n\n- **Titular:** Laia Estudio Creativo Digital\n- **Banco:** Banco Ejemplo\n- **Alias:** laia.estudio", 'raw' => true],
             ],
         ],
 
@@ -141,30 +157,45 @@ MD,
             'motive' => 'billing',
             'locked' => false,
             'enabled' => true,
-            'subject' => 'Tu pago está vencido · {numero} · {empresa}',
+            'subject' => 'Tu cobro {numero} {plazo} · {importe}',
             'body' => <<<'MD'
+<x-estado tono="alerta">Pago pendiente · {plazo}</x-estado>
+
 # Hola, {nombre}
 
-Te escribimos porque el pago de **{concepto}** (cobro {numero}) venció el {vencimiento} y todavía no lo vemos acreditado.
+Repasando nuestras cuentas, vemos que este cobro todavía no figura acreditado. Puede que se nos haya pasado el comprobante, así que te dejamos el detalle por si querés revisarlo.
+
+<x-detalle>
+Concepto: {concepto}
+Cobro: {numero}
+Venció el: {vencimiento}
+Importe: {importe}
+</x-detalle>
 
 <x-panel>
-**Importe:** {importe}
+{datos_bancarios}
 </x-panel>
 
-{datos_bancarios}
+## ¿Ya lo pagaste?
 
-Si ya realizaste el pago, avisanos respondiendo este correo con el comprobante y lo registramos. ¡Gracias!
+<x-pasos>
+Respondé este correo con el comprobante, o enviánoslo por WhatsApp.
+Lo registramos y te confirmamos al instante.
+</x-pasos>
 
-Saludos,<br>
-Equipo {empresa}
+Si todavía no pudiste abonarlo, escribinos y buscamos juntos la mejor forma de ponerlo al día. Estamos para ayudarte.
+
+Un abrazo,<br>
+**El equipo de {empresa}**
 MD,
             'variables' => [
+                'plazo' => ['label' => 'Plazo del cobro (venció hace N días)', 'sample' => 'venció hace 3 días'],
                 'nombre' => ['label' => 'Nombre del cliente', 'sample' => 'Estudio Rivera'],
                 'concepto' => ['label' => 'Concepto del cobro', 'sample' => 'Abono mensual de redes sociales'],
                 'numero' => ['label' => 'Número de cobro', 'sample' => 'C-2026-0118'],
                 'importe' => ['label' => 'Importe formateado', 'sample' => 'ARS 180.000,00'],
                 'vencimiento' => ['label' => 'Fecha de vencimiento (larga)', 'sample' => '10 de diciembre de 2026'],
-                'datos_bancarios' => ['label' => 'Bloque con datos bancarios (vacío si no están cargados)', 'sample' => "Podés abonar por transferencia a:\n\n- **Titular:** Laia Estudio Creativo Digital\n- **Banco:** Banco Ejemplo\n- **Alias:** laia.estudio", 'raw' => true],
+                'datos_bancarios' => ['label' => 'Bloque con datos bancarios (vacío si no están cargados)', 'sample' => "**Datos para transferir**\n\n- **Titular:** Laia Estudio Creativo Digital\n- **Banco:** Banco Ejemplo\n- **Alias:** laia.estudio", 'raw' => true],
             ],
         ],
 

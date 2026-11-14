@@ -8,10 +8,6 @@
 <table class="footer" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
 <tr>
 <td class="footer-cell" align="center">
-<p class="footer-brand">{{ $brand::company() }}</p>
-@if ($brand::tagline())
-<p class="footer-tagline">{{ $brand::tagline() }}</p>
-@endif
 <p class="footer-links">
 @if ($contact['website'])
 <a href="{{ $contact['website'] }}" target="_blank" rel="noopener">{{ preg_replace('#^https?://#', '', rtrim($contact['website'], '/')) }}</a>
@@ -37,7 +33,7 @@
 @if ($contact['address'])
 <p class="footer-address">{{ $contact['address'] }}</p>
 @endif
-<p class="footer-legal">Recibiste este correo porque formás parte de {{ $brand::company() }} o sos cliente de la agencia.<br>© {{ date('Y') }} {{ $brand::company() }}. Todos los derechos reservados.</p>
+<p class="footer-legal">Recibiste este correo porque trabajás con {{ $brand::shortName() }}.<br>© {{ date('Y') }} {{ $brand::company() }}</p>
 </td>
 </tr>
 </table>

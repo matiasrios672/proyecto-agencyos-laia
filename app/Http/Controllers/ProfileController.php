@@ -39,6 +39,7 @@ class ProfileController extends Controller
                 'member_since' => $user->created_at?->toIso8601String(),
                 'clients_count' => $user->clients()->count(),
             ],
+            'bank' => EmployeeController::bankProps($user),
         ]);
     }
 
