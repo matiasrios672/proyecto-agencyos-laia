@@ -2,6 +2,7 @@
 
 namespace App\Actions\Finance;
 
+use App\Enums\BillingTiming;
 use App\Enums\Frequency;
 use App\Models\Client;
 use App\Models\ClientService;
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * Genera los cobros de los servicios contratados. Es idempotente: la restricción única (servicio, período)
  * garantiza que correrlo todos los días, o dos veces seguidas, nunca duplica un cobro.
  *
- *  - Mensual: un cobro por mes, que se emite `finance.invoice_lead_days` días antes del vencimiento.
+ *  - Mensual adelantado: un cobro por mes, que se emite `finance.invoice_lead_days` días antes del vencimiento.
+ *  - Mensual a mes vencido: el cobro del mes M se emite el día 1 del mes siguiente y vence el día elegido de ese mes.
  *  - Pago único: un solo cobro, con vencimiento en la fecha de inicio del servicio.
  */
 class GenerateInvoices
@@ -62,9 +64,23 @@ class GenerateInvoices
             return $this->create($service, 'unico', $due, $service->name, $today) ? 1 : 0;
         }
 
-        $lead = max(0, (int) Settings::get('finance.invoice_lead_days', '10'));
         $startMonth = ($service->started_at ?? $today)->copy()->startOfMonth();
         $created = 0;
+
+        if ($service->billing_timing === BillingTiming::Vencida) {
+            // Solo se cobra un mes ya terminado: el período es el mes anterior y vence en el mes en curso.
+            $month = $today->copy()->subMonthNoOverflow()->startOfMonth();
+            if ($month->lt($startMonth)) {
+                return 0;
+            }
+
+            $due = $today->copy()->startOfMonth()->day(min($service->due_day, $today->daysInMonth));
+            $label = ucfirst($month->locale('es')->translatedFormat('F Y'));
+
+            return $this->create($service, $month->format('Y-m'), $due, "{$service->name} — {$label}", $today) ? 1 : 0;
+        }
+
+        $lead = max(0, (int) Settings::get('finance.invoice_lead_days', '10'));
 
         // Mes actual y el siguiente: así el cobro de principios de mes se emite a fin del mes anterior.
         foreach ([$today->copy()->startOfMonth(), $today->copy()->addMonthNoOverflow()->startOfMonth()] as $month) {

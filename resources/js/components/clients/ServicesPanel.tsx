@@ -17,6 +17,7 @@ export interface ServiceRow {
     frequency: string;
     frequency_label: string;
     due_day: number;
+    billing_timing?: string;
     status: string;
     assignee: { id: number; name: string } | null;
     amount_label?: string;
@@ -30,6 +31,7 @@ export interface ServiceRow {
 
 export interface ServiceOptions {
     frequencies: Options;
+    billingTimings: Options;
     splitRules: Options;
     currencies: Options;
     statuses: Options;
@@ -81,7 +83,7 @@ export function ServicesPanel({ clientId, services, options, assignable, canFina
                                     </div>
                                     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                         {s.frequency === 'mensual' && (
-                                            <span className="inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" /> Vence el día {s.due_day}</span>
+                                            <span className="inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" /> Vence el día {s.due_day}{s.billing_timing === 'vencida' ? ' del mes siguiente' : ''}</span>
                                         )}
                                         <span className="inline-flex items-center gap-1.5">
                                             <UserRound className="size-3.5" /> {s.assignee ? s.assignee.name : 'Sin empleado asignado'}
@@ -120,7 +122,7 @@ export function ServicesPanel({ clientId, services, options, assignable, canFina
 function ServiceDialog({ base, target, options, assignable, onClose }: { base: string; target: ServiceRow | 'new' | null; options: ServiceOptions; assignable: PersonRef[]; onClose: () => void }) {
     const service = target && target !== 'new' ? target : null;
     const form = useForm({
-        name: '', amount: '', currency: 'ARS', frequency: 'mensual', due_day: 10,
+        name: '', amount: '', currency: 'ARS', frequency: 'mensual', due_day: 10, billing_timing: 'adelantada',
         assigned_user_id: '' as number | '', split_rule: 'porcentaje', split_percent: '30', split_amount: '', status: 'activo',
     });
 
@@ -133,6 +135,7 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
             currency: service?.currency ?? 'ARS',
             frequency: service?.frequency ?? 'mensual',
             due_day: service?.due_day ?? 10,
+            billing_timing: service?.billing_timing ?? 'adelantada',
             assigned_user_id: service?.assignee?.id ?? '',
             split_rule: service?.split_rule && service.split_rule !== '100_agencia' ? service.split_rule : 'porcentaje',
             split_percent: service?.split_percent != null ? String(service.split_percent) : '30',
@@ -195,6 +198,19 @@ function ServiceDialog({ base, target, options, assignable, onClose }: { base: s
                                 <Input id="cs-due" type="number" min={1} max={28} value={form.data.due_day} onChange={(e) => form.setData('due_day', Number(e.target.value))} />
                                 <FieldError message={form.errors.due_day} />
                             </div>
+                            {form.data.frequency === 'mensual' && (
+                                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                                    <Label htmlFor="cs-timing">Facturación</Label>
+                                    <Select id="cs-timing" value={form.data.billing_timing} onChange={(e) => form.setData('billing_timing', e.target.value)}>
+                                        {Object.entries(options.billingTimings).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        {form.data.billing_timing === 'vencida'
+                                            ? `El servicio de noviembre se cobra el 1 de diciembre y vence el día ${form.data.due_day} de diciembre.`
+                                            : `El cobro de noviembre vence el día ${form.data.due_day} de noviembre y se emite unos días antes.`}
+                                    </p>
+                                </div>
+                            )}
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="cs-status">Estado</Label>
                                 <Select id="cs-status" value={form.data.status} onChange={(e) => form.setData('status', e.target.value)}>

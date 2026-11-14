@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillingTiming;
 use App\Enums\Currency;
 use App\Enums\Frequency;
 use App\Enums\SplitRule;
@@ -17,7 +18,7 @@ class ClientService extends Model
     public const STATUSES = ['activo' => 'Activo', 'pausado' => 'Pausado', 'cancelado' => 'Cancelado'];
 
     protected $fillable = [
-        'client_id', 'quote_item_id', 'name', 'description', 'amount', 'currency', 'frequency', 'due_day',
+        'client_id', 'quote_item_id', 'name', 'description', 'amount', 'currency', 'frequency', 'due_day', 'billing_timing',
         'assigned_user_id', 'split_rule', 'split_percent', 'split_amount', 'status', 'started_at',
     ];
 
@@ -31,6 +32,7 @@ class ClientService extends Model
             'split_percent' => 'decimal:2',
             'split_amount' => 'integer',
             'due_day' => 'integer',
+            'billing_timing' => BillingTiming::class,
             'started_at' => 'date',
         ];
     }

@@ -130,3 +130,38 @@ describe('pagos únicos y exclusiones', function () {
         expect($commands)->toContain('finance:generate-invoices')->toContain('finance:send-reminders');
     });
 });
+
+describe('servicios a mes vencido', function () {
+    it('el 1 del mes emite el cobro del mes anterior, con vencimiento en el mes en curso', function () {
+        at('2026-12-01');
+        $service = makeService(['billing_timing' => 'vencida', 'due_day' => 5, 'started_at' => '2026-09-01']);
+
+        expect(app(GenerateInvoices::class)->forService($service))->toBe(1);
+
+        $invoice = Invoice::firstOrFail();
+        expect($invoice->period)->toBe('2026-11')
+            ->and($invoice->description)->toBe('Community Management — Noviembre 2026')
+            ->and($invoice->issue_date->toDateString())->toBe('2026-12-01')
+            ->and($invoice->due_date->toDateString())->toBe('2026-12-05');
+    });
+
+    it('no cobra el mes en curso ni lo emite por adelantado a fin de mes', function () {
+        at('2026-11-28');
+        $service = makeService(['billing_timing' => 'vencida', 'due_day' => 5, 'started_at' => '2026-11-01']);
+
+        expect(app(GenerateInvoices::class)->forService($service))->toBe(0)
+            ->and(Invoice::count())->toBe(0);
+    });
+
+    it('es idempotente y no cobra meses anteriores al inicio del servicio', function () {
+        at('2026-12-10');
+        $service = makeService(['billing_timing' => 'vencida', 'started_at' => '2026-09-01']);
+
+        $first = app(GenerateInvoices::class)->forService($service);
+        $second = app(GenerateInvoices::class)->forService($service);
+        expect($first)->toBe(1)->and($second)->toBe(0);
+
+        $nuevo = makeService(['billing_timing' => 'vencida', 'started_at' => '2026-12-03']);
+        expect(app(GenerateInvoices::class)->forService($nuevo))->toBe(0);
+    });
+});

@@ -142,6 +142,7 @@ class ClientController extends Controller
                     'frequency' => $s->frequency->value,
                     'frequency_label' => $s->frequency->label(),
                     'due_day' => $s->due_day,
+                    'billing_timing' => $s->billing_timing->value,
                     'status' => $s->status,
                     'assignee' => $s->assignee ? ['id' => $s->assignee->id, 'name' => $s->assignee->name] : null,
                 ] + ($canFinance ? [
@@ -167,6 +168,7 @@ class ClientController extends Controller
                 : [],
             'serviceOptions' => $canFinance ? [
                 'frequencies' => Frequency::options(),
+                'billingTimings' => \App\Enums\BillingTiming::options(),
                 'splitRules' => SplitRule::options(),
                 'currencies' => Currency::options(),
                 'statuses' => ClientService::STATUSES,

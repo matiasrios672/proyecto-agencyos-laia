@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\BillingTiming;
 use App\Enums\Currency;
 use App\Enums\Frequency;
 use App\Enums\SplitRule;
@@ -24,6 +25,7 @@ class ClientServiceRequest extends FormRequest
             'currency' => ['required', Rule::enum(Currency::class)],
             'frequency' => ['required', Rule::enum(Frequency::class)],
             'due_day' => ['required', 'integer', 'between:1,28'],
+            'billing_timing' => ['nullable', Rule::enum(BillingTiming::class)],
             'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'split_rule' => ['required', Rule::enum(SplitRule::class)],
             'split_percent' => ['nullable', 'required_if:split_rule,porcentaje', 'numeric', 'between:0,100'],
@@ -34,6 +36,6 @@ class ClientServiceRequest extends FormRequest
 
     public function attributes(): array
     {
-        return ['name' => 'nombre', 'amount' => 'monto', 'due_day' => 'día de vencimiento', 'split_percent' => 'porcentaje', 'split_amount' => 'monto fijo'];
+        return ['name' => 'nombre', 'amount' => 'monto', 'due_day' => 'día de vencimiento', 'billing_timing' => 'tipo de facturación', 'split_percent' => 'porcentaje', 'split_amount' => 'monto fijo'];
     }
 }

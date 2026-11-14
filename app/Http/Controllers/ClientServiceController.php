@@ -81,6 +81,7 @@ class ClientServiceController extends Controller
             'currency' => $data['currency'],
             'frequency' => $data['frequency'],
             'due_day' => $data['due_day'],
+            'billing_timing' => $data['billing_timing'] ?? 'adelantada',
             'assigned_user_id' => $userId,
             'split_rule' => $rule,
             'split_percent' => $rule === SplitRule::Porcentaje ? $data['split_percent'] : null,
