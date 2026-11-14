@@ -6,6 +6,7 @@ use App\Actions\Finance\SendAnnouncement;
 use App\Enums\AccountStatus;
 use App\Models\Announcement;
 use App\Models\Client;
+use App\Support\MailTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,10 @@ class AnnouncementController extends Controller
                 'creator' => $a->creator?->name,
             ]),
             'audiences' => self::AUDIENCES,
+            'templates' => collect(MailTemplates::definitions())
+                ->filter(fn ($d, $k) => $k === 'announcement.sent' || ($d['custom'] ?? false))
+                ->filter(fn ($d, $k) => MailTemplates::enabled($k))
+                ->map(fn ($d, $k) => ['key' => $k, 'label' => $d['label']])->values(),
             'statusOptions' => AccountStatus::options(),
             'clients' => Client::where('is_active', true)->orderBy('business_name')->get(['id', 'business_name', 'trade_name', 'email', 'account_status'])
                 ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->displayName(), 'email' => $c->email, 'status' => $c->account_status->value]),
@@ -50,8 +55,13 @@ class AnnouncementController extends Controller
             'status_filter' => ['required_if:audience,estado', 'nullable', Rule::enum(AccountStatus::class)],
             'client_ids' => ['required_if:audience,clientes', 'nullable', 'array', 'max:500'],
             'client_ids.*' => ['integer', Rule::exists('clients', 'id')->whereNull('deleted_at')],
+            'template_key' => ['nullable', 'string', 'max:120'],
             'send' => ['sometimes', 'boolean'],
         ]);
+
+        $templateKey = ($data['template_key'] ?? null) && MailTemplates::exists($data['template_key'])
+            && ($data['template_key'] === 'announcement.sent' || MailTemplates::isCustom($data['template_key']))
+            ? $data['template_key'] : null;
 
         $announcement = Announcement::create([
             'subject' => $data['subject'],
@@ -62,6 +72,7 @@ class AnnouncementController extends Controller
                 'clientes' => ['client_ids' => array_map('intval', $data['client_ids'])],
                 default => null,
             },
+            'template_key' => $templateKey === 'announcement.sent' ? null : $templateKey,
             'status' => 'borrador',
             'created_by' => $request->user()->id,
         ]);

@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Notifications\EmployeeInvitation;
+use App\Notifications\PasswordChangedByAdmin;
 use App\Notifications\TwoFactorWasReset;
 use App\Support\TwoFactor;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -134,6 +137,54 @@ class EmployeeController extends Controller
         $user->notify(new TwoFactorWasReset($request->user()->name));
 
         return back()->with('success', "Se restableció la verificación en dos pasos de {$user->name}.");
+    }
+
+    /**
+     * Cambia la contraseña de alguien del equipo: genera una nueva (se muestra UNA vez) o fija una elegida.
+     * La contraseña actual no se puede ver: se guarda con hash. Se avisa a la persona y queda en la auditoría
+     * (sin la clave). Va por JSON para que la clave generada no pase por la sesión ni por el correo.
+     */
+    public function setPassword(Request $request, User $user): JsonResponse
+    {
+        abort_unless($this->canManage($request->user(), $user), 403);
+        abort_if($user->is($request->user()), 422, 'Para cambiar tu propia contraseña usá «Mi perfil».');
+        abort_unless($user->is_active, 422, 'Esta persona está dada de baja: reactivala antes de cambiarle la contraseña.');
+
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(['generate', 'set'])],
+            'password' => ['required_if:mode,set', 'nullable', 'string', 'confirmed', Password::defaults()],
+        ]);
+
+        $plain = $data['mode'] === 'generate' ? $this->generatePassword() : $data['password'];
+
+        // remember_token en null cierra las sesiones "recordadas" de esa persona.
+        $user->forceFill(['password' => $plain, 'remember_token' => null])->save();
+
+        activity('security')->performedOn($user)->causedBy($request->user())
+            ->withProperties(['mode' => $data['mode'], 'ip' => $request->ip()])->log('Contraseña cambiada por un administrador');
+        $user->notify(new PasswordChangedByAdmin($request->user()->name));
+
+        return response()
+            ->json($data['mode'] === 'generate' ? ['password' => $plain] : ['ok' => true])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    /** 14 caracteres sin los que se confunden al dictarlos (0/O, 1/l/I); siempre con mayúscula, minúscula y número. */
+    private function generatePassword(): string
+    {
+        $sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789'];
+        $all = implode('', $sets);
+
+        $chars = array_map(fn (string $set) => $set[random_int(0, strlen($set) - 1)], $sets);
+        while (count($chars) < 14) {
+            $chars[] = $all[random_int(0, strlen($all) - 1)];
+        }
+        for ($i = count($chars) - 1; $i > 0; $i--) { // mezcla (Fisher-Yates con aleatoriedad criptográfica)
+            $j = random_int(0, $i);
+            [$chars[$i], $chars[$j]] = [$chars[$j], $chars[$i]];
+        }
+
+        return implode('', $chars);
     }
 
     /** Dirección gestiona empleados; solo el sysadmin crea / edita a otros dueños. */

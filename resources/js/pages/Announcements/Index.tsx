@@ -26,6 +26,7 @@ interface Row {
 interface Props {
     announcements: Paginated<Row>;
     audiences: Options;
+    templates: { key: string; label: string }[];
     statusOptions: Options;
     clients: { id: number; name: string; email: string | null; status: string }[];
     can: { manage: boolean };
@@ -33,7 +34,7 @@ interface Props {
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-export default function Index({ announcements, audiences, statusOptions, clients, can }: Props) {
+export default function Index({ announcements, audiences, templates, statusOptions, clients, can }: Props) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -85,13 +86,13 @@ export default function Index({ announcements, audiences, statusOptions, clients
                 </div>
             )}
 
-            <ComposeDialog open={open} audiences={audiences} statusOptions={statusOptions} clients={clients} onClose={() => setOpen(false)} />
+            <ComposeDialog open={open} audiences={audiences} templates={templates} statusOptions={statusOptions} clients={clients} onClose={() => setOpen(false)} />
         </AppLayout>
     );
 }
 
-function ComposeDialog({ open, audiences, statusOptions, clients, onClose }: { open: boolean; audiences: Options; statusOptions: Options; clients: Props['clients']; onClose: () => void }) {
-    const form = useForm({ subject: '', body: '', audience: 'todos', status_filter: 'deuda', client_ids: [] as number[], send: false });
+function ComposeDialog({ open, audiences, templates, statusOptions, clients, onClose }: { open: boolean; audiences: Options; templates: Props['templates']; statusOptions: Options; clients: Props['clients']; onClose: () => void }) {
+    const form = useForm({ subject: '', body: '', template_key: 'announcement.sent', audience: 'todos', status_filter: 'deuda', client_ids: [] as number[], send: false });
     const err = (k: string) => (form.errors as Record<string, string | undefined>)[k];
 
     useEffect(() => { if (open) { form.clearErrors(); form.reset(); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
@@ -105,7 +106,7 @@ function ComposeDialog({ open, audiences, statusOptions, clients, onClose }: { o
     const submit = (send: boolean) => (e: FormEvent) => {
         e.preventDefault();
         form.transform((d) => ({
-            subject: d.subject, body: d.body, audience: d.audience, send,
+            subject: d.subject, body: d.body, template_key: d.template_key, audience: d.audience, send,
             ...(d.audience === 'estado' ? { status_filter: d.status_filter } : {}),
             ...(d.audience === 'clientes' ? { client_ids: d.client_ids } : {}),
         }));
@@ -131,6 +132,15 @@ function ComposeDialog({ open, audiences, statusOptions, clients, onClose }: { o
                             <Textarea id="a-body" required rows={5} value={form.data.body} onChange={(e) => form.setData('body', e.target.value)} />
                             <FieldError message={form.errors.body} />
                         </div>
+                        {templates.length > 1 && (
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="a-tpl">Diseño del correo</Label>
+                                <Select id="a-tpl" value={form.data.template_key} onChange={(e) => form.setData('template_key', e.target.value)}>
+                                    {templates.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                                </Select>
+                                <p className="text-xs text-muted-foreground">Las plantillas propias se crean en Administración → Plantillas de correo.</p>
+                            </div>
+                        )}
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="a-aud">Audiencia</Label>

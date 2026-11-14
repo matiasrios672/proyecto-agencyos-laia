@@ -102,10 +102,11 @@ describe('pedido del enlace', function () {
     it('el correo tiene el enlace personal, el asunto en español y el plazo', function () {
         $mail = (new ResetPasswordLink('tok-123'))->toMail($this->user);
 
+        $html = html_entity_decode($mail->viewData['bodyMarkdown']);
+
         expect($mail->subject)->toContain('contraseña')
-            ->and($mail->actionUrl)->toContain('/restablecer-contrasena/tok-123')->toContain('email=camila%40laia.test')
-            ->and(implode(' ', $mail->introLines))->toContain('Recibimos un pedido')
-            ->and(implode(' ', $mail->outroLines))->toContain('60 minutos')->toContain('una sola vez');
+            ->and($html)->toContain('/restablecer-contrasena/tok-123')->toContain('email=camila%40laia.test')
+            ->and($html)->toContain('Recibimos un pedido')->toContain('60 minutos')->toContain('una sola vez');
     });
 });
 

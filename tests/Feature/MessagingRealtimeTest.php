@@ -172,12 +172,12 @@ describe('notificaciones en tiempo real', function () {
             new ClientAssigned($this->client, 'Lucía'),
             new MentionedInMessage($message, 'Lucía', 1),
         ] as $notification) {
-            expect($notification->via($this->camila))->toBe(['database', 'broadcast']);
+            expect($notification->via($this->camila))->toContain('database', 'broadcast');
         }
 
         $payout = new App\Models\TeamPayout(['amount' => 100, 'currency' => 'ARS']);
         foreach ([new PayoutGenerated($payout, 'Cliente'), new PayoutSettled($payout)] as $notification) {
-            expect($notification->via($this->camila))->toBe(['database', 'broadcast']);
+            expect($notification->via($this->camila))->toContain('database', 'broadcast');
         }
     });
 

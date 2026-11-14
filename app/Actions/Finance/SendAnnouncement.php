@@ -7,6 +7,7 @@ use App\Mail\AnnouncementMail;
 use App\Models\Announcement;
 use App\Models\Client;
 use App\Models\User;
+use App\Support\MailTemplates;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -18,6 +19,12 @@ class SendAnnouncement
     /** @return array{sent: int, without_email: int} */
     public function handle(Announcement $announcement, User $actor): array
     {
+        $templateKey = AnnouncementMail::keyFor($announcement);
+        if (! MailTemplates::enabled($templateKey)) {
+            $label = MailTemplates::definition($templateKey)['label'];
+            throw ValidationException::withMessages(['announcement' => "El correo «{$label}» está desactivado en Administración → Plantillas de correo."]);
+        }
+
         $queue = [];
         $withoutEmail = 0;
 

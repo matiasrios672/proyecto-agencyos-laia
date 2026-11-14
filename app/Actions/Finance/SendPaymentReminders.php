@@ -3,6 +3,7 @@
 namespace App\Actions\Finance;
 
 use App\Mail\PaymentReminderMail;
+use App\Support\MailTemplates;
 use App\Models\Invoice;
 use App\Models\ReminderLog;
 use App\Support\Settings;
@@ -45,6 +46,10 @@ class SendPaymentReminders
     private function send(Invoice $invoice, string $type, array &$result): void
     {
         $email = $invoice->client->email;
+
+        if (! MailTemplates::enabled($type === 'mora' ? 'invoice.reminder_overdue' : 'invoice.reminder_before')) {
+            return;
+        }
 
         if (blank($email)) {
             $result['sin_email']++;

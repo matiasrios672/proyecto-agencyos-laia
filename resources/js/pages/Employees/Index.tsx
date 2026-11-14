@@ -1,6 +1,8 @@
 import { router, useForm } from '@inertiajs/react';
-import { Loader2, MailPlus, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserCheck, UserX, UsersRound } from 'lucide-react';
+import axios from 'axios';
+import { Check, Copy, KeyRound, Loader2, MailPlus, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserCheck, UserX, UsersRound } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { EmptyState } from '@/components/empty-state';
 import { UserStateBadge } from '@/components/status-badge';
@@ -37,6 +39,7 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
     const [dialog, setDialog] = useState<Employee | 'new' | null>(null);
     const [toggling, setToggling] = useState<Employee | null>(null);
     const [resetting2fa, setResetting2fa] = useState<Employee | null>(null);
+    const [passwordFor, setPasswordFor] = useState<Employee | null>(null);
     const [busy, setBusy] = useState(false);
 
     return (
@@ -85,6 +88,11 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
                                                 <ShieldOff />
                                             </Button>
                                         )}
+                                        {e.state !== 'inactive' && (
+                                            <Button variant="ghost" size="icon" className="size-8" aria-label={`Contraseña de ${e.name}`} title="Generar o definir una contraseña nueva" onClick={() => setPasswordFor(e)}>
+                                                <KeyRound />
+                                            </Button>
+                                        )}
                                         <Button variant="ghost" size="icon" className="size-8" aria-label={`Editar a ${e.name}`} onClick={() => setDialog(e)}>
                                             <Pencil />
                                         </Button>
@@ -106,6 +114,7 @@ export default function Index({ employees, assignableRoles, invitationHours }: P
             </Card>
 
             <EmployeeDialog target={dialog} roles={assignableRoles} onClose={() => setDialog(null)} />
+            <PasswordDialog target={passwordFor} onClose={() => setPasswordFor(null)} />
 
             <ConfirmDialog
                 open={resetting2fa !== null}
@@ -204,6 +213,138 @@ function EmployeeDialog({ target, roles, onClose }: { target: Employee | 'new' |
                             {form.processing ? <Loader2 className="animate-spin" /> : employee ? null : <MailPlus />}
                             {employee ? 'Guardar' : 'Enviar invitación'}
                         </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** Cambiar la contraseña de alguien del equipo: generar una (se ve una sola vez) o definir una. La actual no se puede ver (está cifrada). */
+function PasswordDialog({ target, onClose }: { target: Employee | null; onClose: () => void }) {
+    const [mode, setMode] = useState<'generate' | 'set'>('generate');
+    const [generated, setGenerated] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [fields, setFields] = useState({ password: '', password_confirmation: '' });
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Al abrir o cerrar se borra todo: la clave generada no queda en pantalla.
+    useEffect(() => {
+        setMode('generate');
+        setGenerated(null);
+        setCopied(false);
+        setFields({ password: '', password_confirmation: '' });
+        setErrors({});
+    }, [target]);
+
+    const submit = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!target) return;
+        setBusy(true);
+        setErrors({});
+        try {
+            const { data } = await axios.post<{ password?: string }>(`/equipo/${target.id}/clave`, mode === 'generate' ? { mode } : { mode, ...fields });
+            if (data.password) {
+                setGenerated(data.password);
+            } else {
+                toast.success(`Contraseña de ${target.name} actualizada.`);
+                onClose();
+            }
+        } catch (err) {
+            if (axios.isAxiosError(err) && err.response?.status === 422) {
+                const e422 = err.response.data as { message?: string; errors?: Record<string, string[]> };
+                setErrors(Object.fromEntries(Object.entries(e422.errors ?? { form: [e422.message ?? 'No se pudo cambiar la contraseña.'] }).map(([k, v]) => [k, v[0]])));
+            } else {
+                setErrors({ form: 'No se pudo cambiar la contraseña. Probá de nuevo.' });
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const copy = async () => {
+        if (!generated) return;
+        try {
+            await navigator.clipboard.writeText(generated);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast.error('No se pudo copiar: seleccionala y copiala a mano.');
+        }
+    };
+
+    return (
+        <Dialog open={target !== null} onOpenChange={(o) => !o && onClose()}>
+            <DialogContent>
+                <form onSubmit={submit} className="flex min-h-0 flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Contraseña de {target?.name}</DialogTitle>
+                        <DialogDescription>
+                            La contraseña actual no se puede ver: se guarda cifrada, ni siquiera nosotros podemos leerla. Podés generar una nueva o definir una.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        {generated ? (
+                            <div className="flex flex-col gap-3">
+                                <Label>Contraseña nueva</Label>
+                                <div className="flex items-center gap-2">
+                                    <code className="flex-1 select-all rounded-md border bg-muted px-3 py-2 text-center font-mono text-lg tracking-wider">{generated}</code>
+                                    <Button type="button" variant="outline" onClick={copy} aria-label="Copiar contraseña">
+                                        {copied ? <Check /> : <Copy />} {copied ? 'Copiada' : 'Copiar'}
+                                    </Button>
+                                </div>
+                                <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+                                    Se muestra <strong>una sola vez</strong>: al cerrar esta ventana no hay forma de volver a verla. Pasásela por un medio seguro; {target?.name} ya recibió un aviso del cambio (sin la clave) y puede cambiarla desde su perfil.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="tablist">
+                                    {([['generate', 'Generar una nueva'], ['set', 'Definir una']] as const).map(([value, label]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={mode === value}
+                                            onClick={() => { setMode(value); setErrors({}); }}
+                                            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${mode === value ? 'bg-card shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {mode === 'generate' ? (
+                                    <p className="text-sm text-muted-foreground">Se crea una clave aleatoria de 14 caracteres (sin letras que se confunden) y la ves en pantalla para copiarla.</p>
+                                ) : (
+                                    <>
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label htmlFor="pw-new">Contraseña nueva</Label>
+                                            <Input id="pw-new" type="password" autoComplete="new-password" value={fields.password} onChange={(e) => setFields({ ...fields, password: e.target.value })} />
+                                            <p className="text-xs text-muted-foreground">Mínimo 10 caracteres, con letras y números.</p>
+                                            <FieldError message={errors.password} />
+                                        </div>
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label htmlFor="pw-conf">Repetila</Label>
+                                            <Input id="pw-conf" type="password" autoComplete="new-password" value={fields.password_confirmation} onChange={(e) => setFields({ ...fields, password_confirmation: e.target.value })} />
+                                        </div>
+                                    </>
+                                )}
+                                <FieldError message={errors.form} />
+                            </>
+                        )}
+                    </DialogBody>
+                    <DialogFooter>
+                        {generated ? (
+                            <Button type="button" onClick={onClose}>Listo, ya la copié</Button>
+                        ) : (
+                            <>
+                                <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                                <Button type="submit" disabled={busy || (mode === 'set' && !fields.password)}>
+                                    {busy ? <Loader2 className="animate-spin" /> : <KeyRound />} {mode === 'generate' ? 'Generar contraseña' : 'Guardar contraseña'}
+                                </Button>
+                            </>
+                        )}
                     </DialogFooter>
                 </form>
             </DialogContent>

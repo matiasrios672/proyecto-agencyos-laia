@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\PermissionMatrixController;
+use App\Http\Controllers\Admin\MailTemplateController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SystemStatusController;
 use App\Http\Controllers\Auth\InvitationController;
@@ -111,12 +112,23 @@ Route::middleware('auth')->group(function () {
         Route::put('/{user}', [EmployeeController::class, 'update'])->name('update');
         Route::post('/{user}/invitacion', [EmployeeController::class, 'resendInvitation'])->name('invite');
         Route::post('/{user}/estado', [EmployeeController::class, 'toggleActive'])->name('toggle');
+        Route::post('/{user}/clave', [EmployeeController::class, 'setPassword'])->middleware('throttle:20,1')->name('password');
     });
 
     // Panel exclusivo del Superadministrador Técnico.
     Route::middleware('role:sysadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/configuracion', [SettingsController::class, 'index'])->name('settings');
         Route::put('/configuracion', [SettingsController::class, 'update'])->name('settings.update');
+
+        Route::get('/correos', [MailTemplateController::class, 'index'])->name('mail');
+        Route::post('/correos', [MailTemplateController::class, 'store'])->name('mail.store');
+        Route::get('/correos/{key}', [MailTemplateController::class, 'edit'])->name('mail.edit');
+        Route::delete('/correos/{key}', [MailTemplateController::class, 'destroy'])->name('mail.destroy');
+        Route::put('/correos/{key}', [MailTemplateController::class, 'update'])->name('mail.update');
+        Route::post('/correos/{key}/estado', [MailTemplateController::class, 'toggle'])->name('mail.toggle');
+        Route::post('/correos/{key}/restaurar', [MailTemplateController::class, 'reset'])->name('mail.reset');
+        Route::post('/correos/{key}/vista-previa', [MailTemplateController::class, 'preview'])->name('mail.preview');
+        Route::post('/correos/{key}/prueba', [MailTemplateController::class, 'test'])->name('mail.test');
 
         Route::get('/permisos', [PermissionMatrixController::class, 'index'])->name('permissions');
         Route::post('/permisos/rol', [PermissionMatrixController::class, 'toggleRole'])->name('permissions.role');

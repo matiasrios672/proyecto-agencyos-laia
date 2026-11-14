@@ -8,14 +8,13 @@ import {
     HandCoins,
     Landmark,
     LayoutDashboard,
+    LayoutGrid,
     LineChart,
     ListChecks,
     Megaphone,
-    Menu,
+    Mail,
     MessagesSquare,
     Package,
-    PanelLeftClose,
-    PanelLeftOpen,
     Plug,
     Receipt,
     ShieldCheck,
@@ -29,7 +28,6 @@ import { Toaster, toast } from 'sonner';
 import { LaiaIso, LaiaLogo } from '@/components/brand/LaiaLogo';
 import { ChatMenu, NotificationsMenu, PowerButton, ProfileMenu } from '@/components/layout/TopbarActions';
 import { Button } from '@/components/ui/button';
-import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -49,6 +47,9 @@ interface NavGroup {
     /** Solo visible para el superadministrador. */
     sysadminOnly?: boolean;
 }
+
+/** Orden de preferencia para la barra inferior del celular (se muestran hasta 4 con permiso). */
+const tabHrefs = ['/', '/mensajes', '/clientes', '/contenido', '/mis-tareas', '/presupuestos', '/finanzas'];
 
 const groups: NavGroup[] = [
     {
@@ -89,6 +90,7 @@ const groups: NavGroup[] = [
         sysadminOnly: true,
         items: [
             { label: 'Configuración', href: '/admin/configuracion', icon: SlidersHorizontal },
+            { label: 'Plantillas de correo', href: '/admin/correos', icon: Mail },
             { label: 'Permisos', href: '/admin/permisos', icon: ShieldCheck },
             { label: 'Sistema', href: '/admin/sistema', icon: Activity },
         ],
@@ -121,8 +123,6 @@ export default function AppLayout({ title, children }: { title: string; children
     const { auth, flash } = page.props;
     const current = page.url.split('?')[0];
     const [open, setOpen] = useState(false);
-    const [theme, setTheme] = useTheme();
-    const [rail, setRail] = usePersisted<boolean>('laia.sidebar.rail', false);
     const [closedGroups, setClosedGroups] = usePersisted<string[]>('laia.sidebar.closed', []);
 
     useEffect(() => setOpen(false), [current]);
@@ -138,122 +138,167 @@ export default function AppLayout({ title, children }: { title: string; children
     const isActive = (href: string) => (href === '/' ? current === '/' : current.startsWith(href));
     const toggleGroup = (id: string) => setClosedGroups(closedGroups.includes(id) ? closedGroups.filter((g) => g !== id) : [...closedGroups, id]);
 
-    const renderItem = (item: NavItem, compact: boolean) => {
-        const active = isActive(item.href);
-        return (
-            <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                aria-label={compact ? item.label : undefined}
-                className={cn(
-                    'group/item relative flex items-center rounded-lg text-[13px] font-medium text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    compact ? 'justify-center py-2' : 'gap-2.5 px-2.5 py-1.5',
-                    active && 'bg-sidebar-active text-white hover:bg-sidebar-active hover:text-white',
-                )}
-            >
-                {active && <span className="absolute -left-3 top-1/2 h-4 w-1 -translate-y-1/2 rounded-r-full bg-peach" />}
-                <item.icon className={cn('size-[17px] shrink-0 transition-colors', active ? 'text-peach' : 'group-hover/item:text-sidebar-foreground')} />
-                {!compact && item.label}
-                {compact && (
-                    <span
-                        role="tooltip"
-                        className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 shadow-lg transition-opacity group-hover/item:opacity-100 group-focus-visible/item:opacity-100"
-                    >
-                        {item.label}
-                    </span>
-                )}
-            </Link>
-        );
-    };
+    const visibleGroups = groups
+        .filter((g) => !g.sysadminOnly || user.is_sysadmin)
+        .map((g) => ({ ...g, visible: g.items.filter(allowed) }))
+        .filter((g) => g.visible.length > 0);
 
-    /** `compact` = riel de íconos (solo escritorio); el menú móvil siempre es completo. */
-    const renderSidebar = (compact: boolean) => (
-        <div className="flex h-full flex-col gap-3 px-3 pb-3 pt-4">
+    // Celular: barra inferior con los accesos principales a los que la persona tiene permiso + "Más".
+    const allVisible = visibleGroups.flatMap((g) => g.visible);
+    const tabs = tabHrefs
+        .map((href) => allVisible.find((i) => i.href === href))
+        .filter((i): i is NavItem => Boolean(i))
+        .slice(0, 4);
+    const tabActive = tabs.some((t) => isActive(t.href));
+
+    const renderSidebar = () => (
+        <div className="flex h-full flex-col gap-4 px-4 pb-4 pt-5">
             <div className="flex items-center justify-center px-1">
-                {compact ? <LaiaIso tone="light" className="size-8" /> : <LaiaLogo tone="light" className="h-12" />}
+                <LaiaLogo tone="light" className="h-14" />
             </div>
 
-            <div className={cn('flex min-h-0 flex-1 flex-col gap-1', compact ? 'overflow-visible' : 'overflow-y-auto')}>
-                {groups
-                    .filter((g) => !g.sysadminOnly || user.is_sysadmin)
-                    .map((g) => ({ ...g, visible: g.items.filter(allowed) }))
-                    .filter((g) => g.visible.length > 0)
-                    .map((g) => {
-                        const collapsed = !compact && closedGroups.includes(g.id);
-                        return (
-                            <nav key={g.id} aria-label={g.label} className="flex flex-col gap-0.5">
-                                {compact ? (
-                                    <span className="mx-2 my-1.5 h-px bg-sidebar-border" aria-hidden="true" />
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleGroup(g.id)}
-                                        aria-expanded={!collapsed}
-                                        className="flex items-center justify-between rounded-md px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted/70 transition-colors hover:text-sidebar-foreground"
-                                    >
-                                        {g.label}
-                                        <ChevronDown className={cn('size-3 transition-transform', collapsed && '-rotate-90')} />
-                                    </button>
-                                )}
-                                {!collapsed && g.visible.map((item) => renderItem(item, compact))}
-                            </nav>
-                        );
-                    })}
+            <div className="sidebar-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+                {visibleGroups.map((g) => {
+                    const collapsed = closedGroups.includes(g.id);
+                    return (
+                        <nav key={g.id} aria-label={g.label} className="flex flex-col gap-0.5">
+                            <button
+                                type="button"
+                                onClick={() => toggleGroup(g.id)}
+                                aria-expanded={!collapsed}
+                                className="flex items-center justify-between rounded-md px-3 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted/70 transition-colors hover:text-sidebar-foreground"
+                            >
+                                {g.label}
+                                <ChevronDown className={cn('size-3.5 transition-transform', collapsed && '-rotate-90')} />
+                            </button>
+                            {!collapsed &&
+                                g.visible.map((item) => {
+                                    const active = isActive(item.href);
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            aria-current={active ? 'page' : undefined}
+                                            className={cn(
+                                                'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                                                active && 'bg-sidebar-active text-white hover:bg-sidebar-active hover:text-white',
+                                            )}
+                                        >
+                                            {active && <span className="absolute -left-4 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-peach" />}
+                                            <item.icon className={cn('size-5 shrink-0', active && 'text-peach')} />
+                                            {item.label}
+                                        </Link>
+                                    );
+                                })}
+                        </nav>
+                    );
+                })}
             </div>
-
-            <button
-                type="button"
-                onClick={() => setRail(!rail)}
-                aria-label={rail ? 'Expandir barra lateral' : 'Contraer barra lateral'}
-                className={cn(
-                    'hidden items-center rounded-lg px-2.5 py-2 text-xs font-medium text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground md:flex',
-                    compact ? 'justify-center' : 'gap-2.5',
-                )}
-            >
-                {compact ? <PanelLeftOpen className="size-[17px]" /> : <PanelLeftClose className="size-[17px]" />}
-                {!compact && 'Contraer'}
-            </button>
         </div>
     );
 
     return (
         <div className="min-h-screen bg-background">
             <title>{title}</title>
-            <aside className={cn('fixed inset-y-0 left-0 z-30 hidden bg-sidebar transition-[width] duration-200 md:block', rail ? 'w-16' : 'w-56')}>
-                {renderSidebar(rail)}
-            </aside>
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-sidebar md:block">{renderSidebar()}</aside>
 
+            {/* Celular: hoja "Más" con todas las secciones agrupadas */}
             {open && (
                 <div className="fixed inset-0 z-40 md:hidden">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-                    <aside className="absolute inset-y-0 left-0 w-64 bg-sidebar shadow-2xl">{renderSidebar(false)}</aside>
+                    <section
+                        role="dialog"
+                        aria-label="Todas las secciones"
+                        className="sidebar-scroll absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-sidebar px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl"
+                    >
+                        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-sidebar-border" aria-hidden="true" />
+                        <div className="mb-2 flex items-center justify-between">
+                            <LaiaLogo tone="light" className="h-9" />
+                            <Button variant="ghost" size="icon" className="text-sidebar-foreground hover:bg-sidebar-hover" aria-label="Cerrar" onClick={() => setOpen(false)}>
+                                <X />
+                            </Button>
+                        </div>
+                        {visibleGroups.map((g) => (
+                            <nav key={g.id} aria-label={g.label} className="mt-4">
+                                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted/70">{g.label}</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {g.visible.map((item) => {
+                                        const active = isActive(item.href);
+                                        return (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                aria-current={active ? 'page' : undefined}
+                                                className={cn(
+                                                    'flex flex-col items-center gap-1.5 rounded-xl bg-sidebar-hover/60 px-2 py-3 text-center text-xs font-medium text-sidebar-foreground transition-colors active:bg-sidebar-hover',
+                                                    active && 'bg-sidebar-active text-white',
+                                                )}
+                                            >
+                                                <item.icon className={cn('size-6', active && 'text-peach')} />
+                                                <span className="leading-tight">{item.label}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </nav>
+                        ))}
+                    </section>
                 </div>
             )}
 
-            <div className={cn('transition-[padding] duration-200', rail ? 'md:pl-16' : 'md:pl-56')}>
+            <div className="md:pl-64">
                 <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:px-8">
-                    <Button variant="ghost" size="icon" className="md:hidden" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((o) => !o)}>
-                        {open ? <X /> : <Menu />}
-                    </Button>
+                    <LaiaIso className="size-8 shrink-0 md:hidden" />
                     <h1 className="truncate font-display text-base font-bold tracking-tight">{title}</h1>
 
                     <div className="ml-auto flex items-center gap-1">
                         <ChatMenu />
                         <NotificationsMenu />
                         <span className="mx-1.5 hidden h-6 w-px bg-border sm:block" aria-hidden="true" />
-                        <ProfileMenu theme={theme} onTheme={setTheme} />
+                        <ProfileMenu />
                         <PowerButton />
                     </div>
                 </header>
-                <main className="mx-auto w-full max-w-6xl px-4 py-7 md:px-8">{children}</main>
+                <main className="mx-auto w-full max-w-6xl px-4 py-7 pb-28 md:px-8 md:pb-7">{children}</main>
             </div>
+
+            {/* Celular: barra inferior */}
+            <nav aria-label="Navegación principal" className="fixed inset-x-0 bottom-0 z-30 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden">
+                <ul className="flex items-stretch justify-around px-1">
+                    {tabs.map((item) => {
+                        const active = isActive(item.href);
+                        return (
+                            <li key={item.href} className="flex-1">
+                                <Link
+                                    href={item.href}
+                                    aria-current={active ? 'page' : undefined}
+                                    className={cn('flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-sidebar-muted', active && 'text-white')}
+                                >
+                                    <item.icon className={cn('size-6', active && 'text-peach')} />
+                                    {item.label}
+                                </Link>
+                            </li>
+                        );
+                    })}
+                    <li className="flex-1">
+                        <button
+                            type="button"
+                            onClick={() => setOpen(true)}
+                            aria-label="Más secciones"
+                            className={cn('flex w-full flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-sidebar-muted', !tabActive && 'text-white')}
+                        >
+                            <LayoutGrid className={cn('size-6', !tabActive && 'text-peach')} />
+                            Más
+                        </button>
+                    </li>
+                </ul>
+            </nav>
 
             <Toaster
                 position="top-right"
                 offset={{ top: 76, right: 20 }}
                 mobileOffset={{ top: 72, right: 12, left: 12 }}
-                theme={theme}
+                theme="light"
                 richColors
                 closeButton
                 toastOptions={{

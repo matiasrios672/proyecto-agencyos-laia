@@ -9,15 +9,7 @@
     <link rel="icon" type="image/png" href="/brand/favicon.png">
     <link rel="apple-touch-icon" href="/brand/favicon.png">
     <meta name="theme-color" content="#162660">
-    <script>
-        (function () {
-            try {
-                var t = localStorage.getItem('theme') || 'system';
-                var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                document.documentElement.classList.toggle('dark', dark);
-            } catch (e) {}
-        })();
-    </script>
+    <meta name="color-scheme" content="light">
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead

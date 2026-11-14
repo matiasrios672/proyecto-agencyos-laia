@@ -2,16 +2,15 @@
 
 namespace App\Notifications;
 
-use App\Models\User;
+use App\Notifications\Concerns\SendsTemplateMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /** Correo con el enlace para restablecer la contraseña (token de un solo uso, vence en 60 minutos). */
 class ResetPasswordLink extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsTemplateMail;
 
     public function __construct(public readonly string $token) {}
 
@@ -20,18 +19,17 @@ class ResetPasswordLink extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    public function toMail(User $notifiable): MailMessage
+    protected function templateKey(): string
     {
-        $url = route('password.reset', ['token' => $this->token, 'email' => $notifiable->email]);
-        $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60);
+        return 'auth.password_reset';
+    }
 
-        return (new MailMessage)
-            ->subject('Restablecé tu contraseña · Agency OS')
-            ->greeting("¡Hola, {$notifiable->name}!")
-            ->line('Recibimos un pedido para restablecer la contraseña de tu cuenta en Agency OS.')
-            ->action('Elegir una contraseña nueva', $url)
-            ->line("El enlace es personal, se puede usar una sola vez y vence en {$minutes} minutos.")
-            ->line('Si no lo pediste vos, ignorá este correo: tu contraseña actual sigue siendo la misma.')
-            ->salutation('Equipo Laia');
+    protected function templateVars(object $notifiable): array
+    {
+        return [
+            'nombre' => $notifiable->name,
+            'url' => route('password.reset', ['token' => $this->token, 'email' => $notifiable->email]),
+            'minutos' => (string) (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60),
+        ];
     }
 }

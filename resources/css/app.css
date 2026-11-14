@@ -5,16 +5,15 @@
 @source '../**/*.blade.php';
 @source '../**/*.tsx';
 
-@custom-variant dark (&:is(.dark *));
-
 /*
  * Identidad Laia (colores tomados del logo oficial):
  *   azul marino  #162660  → color de marca, barra lateral y botones principales
  *   durazno      #F5A773  → acento cálido (indicadores, avisos)
- *   celeste      #6AB9CF  → acento frío (foco, modo oscuro)
- * En modo oscuro el celeste pasa a ser el color de acción, porque el marino no contrasta sobre fondo oscuro.
+ *   celeste      #6AB9CF  → acento frío (foco)
+ * La interfaz es solo clara (no hay modo oscuro).
  */
 :root {
+    color-scheme: light;
     --brand-navy: #162660;
     --brand-peach: #f5a773;
     --brand-sky: #6ab9cf;
@@ -56,36 +55,6 @@
 
     --radius: 0.625rem;
     --shadow-pop: 0 10px 30px -8px rgb(22 38 96 / 0.28), 0 2px 6px rgb(22 38 96 / 0.08);
-}
-
-.dark {
-    --background: #0a0f2a;
-    --foreground: #e8ecfa;
-    --card: #101739;
-    --card-foreground: #e8ecfa;
-    --popover: #141c45;
-    --popover-foreground: #e8ecfa;
-    --primary: #6ab9cf;
-    --primary-foreground: #0a1236;
-    --secondary: #19224f;
-    --secondary-foreground: #e8ecfa;
-    --muted: #131a40;
-    --muted-foreground: #9ba6cd;
-    --accent: #1b265a;
-    --accent-foreground: #c3e6f0;
-    --border: #232d5e;
-    --input: #2d3870;
-    --ring: #6ab9cf;
-    --success: #4ade80;
-    --warning: #fbbf24;
-    --danger: #f87171;
-
-    --sidebar: #0c1235;
-    --chart-1: #38a0c6;
-    --chart-2: #d9742f;
-    --chart-3: #6b7fd8;
-    --chart-grid: #1f2858;
-    --shadow-pop: 0 10px 30px -8px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
 }
 
 @theme inline {
@@ -182,4 +151,23 @@
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* Barra de desplazamiento del menú lateral: fina y translúcida, para que no rompa el azul marino. */
+.sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.22) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.22);
+    border-radius: 9999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.4);
 }

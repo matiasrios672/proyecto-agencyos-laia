@@ -41,7 +41,8 @@ describe('alta', function () {
         $user->assignRole('empleado');
 
         $mail = (new EmployeeInvitation)->toMail($user);
-        $url = $mail->actionUrl;
+        preg_match('/href="([^"]*invitacion[^"]*)"/', $mail->viewData['bodyMarkdown'], $m);
+        $url = html_entity_decode($m[1] ?? '');
 
         expect($url)->toContain('signature=')->toContain("/invitacion/{$user->id}");
         $this->get($url)->assertOk();

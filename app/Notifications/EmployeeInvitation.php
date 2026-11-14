@@ -3,15 +3,16 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Notifications\Concerns\SendsTemplateMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
+/** Invitación para que una persona nueva del equipo configure su contraseña (enlace firmado). */
 class EmployeeInvitation extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsTemplateMail;
 
     public const VALID_HOURS = 72;
 
@@ -20,18 +21,18 @@ class EmployeeInvitation extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    public function toMail(User $notifiable): MailMessage
+    protected function templateKey(): string
+    {
+        return 'auth.invitation';
+    }
+
+    protected function templateVars(object $notifiable): array
     {
         // La URL se firma al enviar (no al encolar) para que el plazo corra desde el envío real.
-        $url = URL::temporarySignedRoute('invitation.show', now()->addHours(self::VALID_HOURS), ['user' => $notifiable->id]);
-
-        return (new MailMessage)
-            ->subject('Te invitamos a Agency OS · Laia Estudio Creativo Digital')
-            ->greeting("¡Hola, {$notifiable->name}!")
-            ->line('Te dieron de alta en Agency OS, el backoffice de Laia Estudio Creativo Digital.')
-            ->line('Para empezar, configurá tu contraseña con el siguiente botón:')
-            ->action('Configurar mi contraseña', $url)
-            ->line('El enlace es personal y vence en '.self::VALID_HOURS.' horas. Si vence, pedile a Dirección que te reenvíe la invitación.')
-            ->salutation('Equipo Laia');
+        return [
+            'nombre' => $notifiable->name,
+            'url' => URL::temporarySignedRoute('invitation.show', now()->addHours(self::VALID_HOURS), ['user' => $notifiable->id]),
+            'horas' => (string) self::VALID_HOURS,
+        ];
     }
 }

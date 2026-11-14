@@ -11,6 +11,7 @@ use App\Enums\SplitRule;
 use App\Http\Requests\ConvertQuoteRequest;
 use App\Http\Requests\QuoteRequest;
 use App\Mail\QuoteMail;
+use App\Support\MailTemplates;
 use App\Models\CatalogService;
 use App\Models\Client;
 use App\Models\Quote;
@@ -204,6 +205,9 @@ class QuoteController extends Controller
             $email = $quote->recipientEmail();
             if (blank($email)) {
                 throw ValidationException::withMessages(['channel' => 'El destinatario no tiene email cargado.']);
+            }
+            if (! MailTemplates::enabled('quote.sent')) {
+                throw ValidationException::withMessages(['channel' => 'El correo «Envío de presupuesto» está desactivado en Administración → Plantillas de correo.']);
             }
             Mail::to($email)->send(new QuoteMail($quote));
         }

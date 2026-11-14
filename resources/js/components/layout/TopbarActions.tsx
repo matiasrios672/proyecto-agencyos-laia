@@ -1,6 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { Bell, BellOff, Building2, CheckCheck, MessageSquare, Monitor, Moon, Power, Sun, User as UserIcon, Wallet, type LucideIcon } from 'lucide-react';
+import { Bell, BellOff, Building2, CheckCheck, MessageSquare, Power, User as UserIcon, Wallet, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/avatar';
@@ -11,14 +11,11 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { timeAgo, type Theme } from '@/lib/theme';
+import { timeAgo } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -282,7 +279,7 @@ export function NotificationsMenu() {
 
 /* ───────────────────────────── Perfil ───────────────────────────── */
 
-export function ProfileMenu({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => void }) {
+export function ProfileMenu() {
     const user = usePage<SharedProps>().props.auth!.user;
 
     return (
@@ -311,19 +308,6 @@ export function ProfileMenu({ theme, onTheme }: { theme: Theme; onTheme: (t: The
                         <UserIcon /> Mi perfil
                     </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Apariencia</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={theme} onValueChange={(v) => onTheme(v as Theme)}>
-                    <DropdownMenuRadioItem value="light">
-                        <Sun /> Claro
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="dark">
-                        <Moon /> Oscuro
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="system">
-                        <Monitor /> Automático
-                    </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => router.post('/logout')} className="text-danger data-[highlighted]:bg-danger/10 [&_svg]:text-danger">
                     <Power /> Cerrar sesión

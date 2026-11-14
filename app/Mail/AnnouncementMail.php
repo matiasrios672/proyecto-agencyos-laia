@@ -3,29 +3,31 @@
 namespace App\Mail;
 
 use App\Models\Announcement;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
+use App\Support\MailTemplates;
 
-class AnnouncementMail extends Mailable implements ShouldQueue
+class AnnouncementMail extends TemplateMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(public Announcement $announcement, public string $clientName) {}
 
-    public function envelope(): Envelope
+    protected function templateKey(): string
     {
-        return new Envelope(subject: $this->announcement->subject);
+        return self::keyFor($this->announcement);
     }
 
-    public function content(): Content
+    /** Plantilla elegida para el comunicado (si se borró, vale la estándar). */
+    public static function keyFor(Announcement $announcement): string
     {
-        return new Content(markdown: 'mail.announcement', with: [
-            'name' => $this->clientName,
-            'body' => $this->announcement->body,
-        ]);
+        $key = $announcement->template_key;
+
+        return $key && MailTemplates::exists($key) ? $key : 'announcement.sent';
+    }
+
+    protected function templateVars(): array
+    {
+        return [
+            'nombre' => $this->clientName,
+            'asunto' => $this->announcement->subject,
+            'mensaje' => $this->announcement->body,
+        ];
     }
 }
