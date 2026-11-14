@@ -6,6 +6,12 @@ import type { ComponentType } from 'react';
 
 const pages = import.meta.glob<{ default: ComponentType }>('./pages/**/*.tsx', { eager: false });
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
+
 createInertiaApp({
     title: (title) => (title ? `${title} · Agency OS` : 'Agency OS'),
     resolve: async (name) => {
